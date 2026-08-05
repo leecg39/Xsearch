@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>트윗 수집기 v{{VERSION}}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#eef2f6;padding:24px;display:flex;justify-content:center}
+.wrap{max-width:860px;width:100%}
+.card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.07);padding:36px;margin-bottom:20px}
+h1{font-size:1.55rem;color:#0f1419;margin-bottom:6px}
+.ver{color:#1d9bf0;font-size:.85rem;font-weight:600;display:inline-block;margin-bottom:22px}
+h2{font-size:1rem;color:#0f1419;margin-bottom:14px}
+.install{text-align:center;padding:26px 0;background:#f7fbff;border:1px dashed #b8ddf7;border-radius:12px;margin-bottom:8px}
+.bm-btn{display:inline-block;background:#1d9bf0;color:#fff;padding:14px 34px;border-radius:40px;font-size:1.08rem;font-weight:700;text-decoration:none;cursor:grab;box-shadow:0 4px 14px rgba(29,155,240,.32);transition:.15s}
+.bm-btn:hover{background:#1a8cd8;transform:translateY(-1px)}
+.hint{color:#536471;font-size:.85rem;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{text-align:left;padding:8px;color:#536471;border-bottom:2px solid #eff3f4;font-weight:600}
+td{padding:9px 8px;border-bottom:1px solid #f2f5f7;color:#334;vertical-align:top;line-height:1.55}
+td:first-child{width:88px;white-space:nowrap;color:#0f1419;font-weight:600}
+td code{background:#f2f5f7;padding:1px 5px;border-radius:4px;font-family:ui-monospace,monospace;font-size:.85em}
+td b{color:#0f1419}
+.code-wrap{background:#0f1419;border-radius:12px;padding:16px;position:relative;margin-top:8px}
+.code-wrap code{color:#8899a6;font-size:.68rem;word-break:break-all;display:block;max-height:70px;overflow:auto;line-height:1.4}
+.cp{position:absolute;top:8px;right:8px;background:#1d9bf0;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:.78rem;cursor:pointer}
+.warn{font-size:.8rem;color:#8899a6;margin-top:14px;line-height:1.6}
+.warn code{background:#eef1f3;padding:1px 5px;border-radius:4px;font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="card">
+  <h1>🐦 트윗 수집기</h1>
+  <span class="ver">v{{VERSION}} — Chrome 확장 프로그램 지원</span>
+  <div class="install">
+    <p class="hint">👇 아래 버튼을 <b>북마크바로 드래그</b>하세요</p>
+    <a class="bm-btn" id="bmLink" href="#">🐦 트윗수집 v{{VERSION}}</a>
+  </div>
+  <p class="warn">※ 주소창에 직접 붙여넣으면 Chrome이 <code>javascript:</code> 접두사를 지웁니다. 반드시 북마크로 등록해서 사용하세요.</p>
+</div>
+
+<div class="card">
+  <h2>v4.7.0 — 확장 프로그램</h2>
+  <table>
+    <tr><th>#</th><th>내용</th></tr>
+    <tr><td>Chrome 확장</td><td><code>dist-extension/</code>을 개발자 모드로 로드하면 툴바 아이콘 클릭 한 번으로 시작 — 북마크 재등록 불필요. 옵션 페이지에서 필터 정규식·목표·속도 변경, <code>Downloads/tweets/</code> 폴더로 자동 저장.</td></tr>
+    <tr><td>페이지 유지 (v4.6.4)</td><td>북마크 클릭 시 X 페이지가 덮어씌워지던 문제 수정 (<code>void(...)</code> 이중 적용).</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>v4.6.3 — 날짜 수정</h2>
+  <table>
+    <tr><th>#</th><th>내용</th></tr>
+    <tr><td>파일명 날짜</td><td>UTC 기준이라 <b>한국시간 자정~오전 9시</b>에 저장하면 전날 날짜(<code>tw_2026-03-21.csv</code>)로 나오던 버그 수정 — 기기 로컬 날짜 사용. 트윗 자체의 시간 컬럼은 UTC ISO 유지(DuckDB가 타임존 처리).</td></tr>
+    <tr><td>속도 버튼 복원 (v4.6.2)</td><td>증분 전용이 되면서 페이스가 다시 중요해짐 — 쌓인 피드는 쭉쭉 내려가도 되지만, 처음부터 수집할 땐 조절 필요. <b>기본 2000ms</b> (기존 1000), 200~5000ms.</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>v4.6.1 — 2차 감량 (요약)</h2>
+  <table>
+    <tr><th>뺀 것</th><th>이유</th></tr>
+    <tr><td>완료화면 정렬·최소조회·중복제거</td><td>DuckDB 분석 파이프라인이 하는 일과 중복 — 수집기는 수집만</td></tr>
+    <tr><td>MD 내보내기</td><td>코드에서 가장 큰 덩어리인데 파이프라인은 CSV/JSON 사용</td></tr>
+    <tr><td>필터 3단 → 2단</td><td>OFF ↔ AI만. 잡음제외 중간 단계 제거</td></tr>
+  </table>
+  <br>
+  <table>
+    <tr><th>v4.6.0에서 뺀 것 (요약)</th><th></th></tr>
+    <tr><td>바닥이동·속도·터보·더보기 토글</td><td>증분 전용 / 1000ms 고정 / 터보·더보기 상시 ON</td></tr>
+  </table>
+  <br>
+  <table>
+    <tr><th>남긴 것</th><th>이유</th></tr>
+    <tr><td>DOM 파싱</td><td>시작 전 로딩된 초기 화면 트윗 + X의 fetch 전환 대비 보험</td></tr>
+    <tr><td>일시정지</td><td>수집 중 페이지를 직접 만질 때의 탈출구</td></tr>
+    <tr><td>이어하기·소프트블록 대응·따라잡기</td><td>장시간 수집의 생존 장치</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>패널 컨트롤 (4개)</h2>
+  <table>
+    <tr><th>버튼</th><th>설명</th></tr>
+    <tr><td>일시정지</td><td>수집을 잠시 멈췄다가 재개</td></tr>
+    <tr><td>중단·저장</td><td>지금까지 수집분으로 종료 → CSV / JSON 다운로드</td></tr>
+    <tr><td>속도</td><td>이동 사이 대기 200~5000ms (기본 2000)</td></tr>
+    <tr><td>필터</td><td>전체 ↔ AI만</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>북마클릿 코드</h2>
+  <div class="code-wrap">
+    <button class="cp" onclick="copyCode()">📋복사</button>
+    <code id="codeBlock"></code>
+  </div>
+</div>
+
+</div>
+<script>
+var bmCode = {{BM_CODE}};
+document.getElementById("bmLink").href = bmCode;
+document.getElementById("codeBlock").textContent = bmCode;
+function copyCode(){
+  navigator.clipboard.writeText(bmCode).then(function(){
+    var b = document.querySelector(".cp");
+    b.textContent = "\u2705 \ubcf5\uc0ac\ub428";
+    setTimeout(function(){ b.textContent = "\ud83d\udccb\ubcf5\uc0ac"; }, 1500);
+  });
+}
+</script>
+</body>
+</html>

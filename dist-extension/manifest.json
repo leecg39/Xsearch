@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "트윗 수집기",
+  "version": "4.7.0",
+  "description": "x.com 피드를 자동 스크롤하며 트윗을 수집해 CSV/JSON으로 저장합니다.",
+  "action": {
+    "default_title": "트윗 수집기 시작"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "permissions": ["scripting", "storage", "downloads"],
+  "host_permissions": ["https://x.com/*", "https://twitter.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

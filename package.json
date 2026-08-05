@@ -1,0 +1,17 @@
+{
+  "name": "tweet-collector",
+  "version": "4.7.0",
+  "private": true,
+  "type": "module",
+  "description": "X(트위터) 게시물 수집 북마클릿 — 소스 분리 + 빌드 프로젝트",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node tools/dev.mjs",
+    "verify": "node tools/verify.mjs",
+    "check": "node --check src/collector.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "prettier": "^3.9.6"
+  }
+}

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>트윗 수집기 설정</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f7f9fa;color:#0f1419;padding:32px;display:flex;justify-content:center}
+.wrap{max-width:720px;width:100%}
+h1{font-size:1.3rem;margin-bottom:4px}
+.sub{color:#536471;font-size:.85rem;margin-bottom:24px}
+.card{background:#fff;border:1px solid #eff3f4;border-radius:12px;padding:20px;margin-bottom:16px}
+label{display:block;font-size:.85rem;font-weight:600;margin-bottom:6px}
+.hint{font-size:.75rem;color:#536471;font-weight:400;margin-left:6px}
+textarea{width:100%;min-height:64px;font-family:ui-monospace,monospace;font-size:.75rem;padding:8px;border:1px solid #cfd9de;border-radius:8px;resize:vertical}
+input[type=number]{width:100px;padding:6px 8px;border:1px solid #cfd9de;border-radius:8px;font-size:.85rem}
+select{padding:6px 8px;border:1px solid #cfd9de;border-radius:8px;font-size:.85rem}
+.row{display:flex;gap:16px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.ck{display:flex;gap:6px;align-items:center;font-size:.85rem;font-weight:400}
+.err{color:#f4212e;font-size:.75rem;margin-top:4px;min-height:1em}
+.btns{display:flex;gap:8px;margin-top:8px}
+button{background:#1d9bf0;color:#fff;border:0;border-radius:20px;padding:10px 24px;font-size:.9rem;font-weight:700;cursor:pointer}
+button.ghost{background:#eff3f4;color:#0f1419}
+#msg{color:#00ba7c;font-size:.85rem;font-weight:600;margin-left:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🐦 트윗 수집기 설정</h1>
+  <p class="sub">변경 후 저장하면 다음 수집부터 적용됩니다. 정규식은 비워두면 기본값 사용.</p>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="target">목표 트윗 수</label>
+        <input type="number" id="target" min="1" step="100">
+      </div>
+      <div>
+        <label for="delay">이동 대기 (ms)<span class="hint">200~5000, 낮을수록 빠름·차단 위험</span></label>
+        <input type="number" id="delay" min="200" max="5000" step="100">
+      </div>
+      <div>
+        <label for="filterMode">필터 기본값</label>
+        <select id="filterMode">
+          <option value="0">OFF (전체 수집)</option>
+          <option value="1">AI만</option>
+        </select>
+      </div>
+    </div>
+    <label class="ck"><input type="checkbox" id="autoStart"> x.com 접속 시 자동으로 수집 시작</label>
+  </div>
+
+  <div class="card">
+    <label for="reKeep">KEEP 정규식<span class="hint">이 패턴에 맞으면 무조건 수집</span></label>
+    <textarea id="reKeep" spellcheck="false"></textarea>
+    <div class="err" id="errKeep"></div>
+
+    <label for="reWeak" style="margin-top:12px">WEAK 정규식<span class="hint">KEEP에 안 맞아도, WEAK에 맞고 DROP에 안 맞으면 수집</span></label>
+    <textarea id="reWeak" spellcheck="false"></textarea>
+    <div class="err" id="errWeak"></div>
+
+    <label for="reDrop" style="margin-top:12px">DROP 정규식<span class="hint">WEAK에 맞아도 이 패턴이면 제외</span></label>
+    <textarea id="reDrop" spellcheck="false"></textarea>
+    <div class="err" id="errDrop"></div>
+  </div>
+
+  <div class="btns">
+    <button id="save">저장</button>
+    <button id="reset" class="ghost">기본값으로 복원</button>
+    <span id="msg"></span>
+  </div>
+</div>
+<script src="options.js"></script>
+</body>
+</html>
