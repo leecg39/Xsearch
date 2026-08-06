@@ -14,8 +14,12 @@ window.addEventListener("message", (ev) => {
   if (d.__twc !== "download") return;
   // 페이지 컨텍스트에서 blob URL 생성 (service worker는 createObjectURL 불가)
   const url = URL.createObjectURL(new Blob([d.content], { type: d.mime || "text/plain" }));
-  chrome.runtime.sendMessage({ __twc: "download", url, fname: d.fname });
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  // 다운로드 완료(또는 실패) 확인까지 revoke를 미룬다.
+  // service worker가 비활성→활성 전환 중 메시지를 놓치면 5분 후에 정리한다.
+  chrome.runtime.sendMessage({ __twc: "download", url, fname: d.fname }, (resp) => {
+    URL.revokeObjectURL(url);
+  });
+  setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
 });
 
 // 자동 시작: 옵션에서 켜두면 페이지 로드 후 수집기 실행

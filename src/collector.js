@@ -1045,7 +1045,7 @@ void (async function twcMain() {
     results.length.toLocaleString() +
     "</b><s>개 수집" +
     (skippedCount ? " · " + skippedCount + "건 제외" : "") +
-    '</s></div><div class="row"><button class="btn" id="dc">CSV</button><button class="btn" id="dj">JSON</button><button class="btn" id="db">브리핑 내보내기</button></div>';
+    '</s></div><div class="row"><button class="btn" id="dc">CSV</button><button class="btn" id="dj">JSON</button><button class="btn" id="db">AI 브리핑으로 보내기</button></div>';
   function download(content, mime, fname) {
     if (EXT) {
       // 확장 모드: bridge.js(content script)가 받아 chrome.downloads로 저장
@@ -1136,18 +1136,22 @@ void (async function twcMain() {
       "tw_" + dateStr + ".json",
     );
   };
-  // 브리핑 내보내기: 수집분을 로컬 '5분 AI 뉴스 빌더'(newsgen)로 보낸다.
+  // AI 브리핑으로 보내기: 수집분을 로컬 'Xsearch 뉴스 빌더'(newsgen)로 보낸다.
   // 확장 모드는 background가 전송·탭 열기를 담당, 북마클릿 모드는 직접 fetch.
   function sendBrief() {
     var fname = "tw_" + dateStr + ".json";
     var btn = $("db");
     if (EXT) {
+      if (btn) {
+        btn.textContent = "전송 중…";
+        btn.disabled = true;
+      }
       window.postMessage(
         { __twc: "brief", content: JSON.stringify(jsonData()), fname: fname },
         "*",
       );
       if (btn) {
-        btn.textContent = "빌더로 전송됨 — 새 탭 확인";
+        btn.textContent = "전송 중…";
         btn.disabled = true;
       }
       return;

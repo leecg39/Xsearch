@@ -79,12 +79,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return;
   }
   if (msg && msg.__twc === "download" && msg.url) {
-    chrome.downloads.download({
-      url: msg.url,
-      filename: "tweets/" + (msg.fname || "tw_export"),
-      conflictAction: "uniquify",
-    });
-    return;
+    chrome.downloads.download(
+      {
+        url: msg.url,
+        filename: "tweets/" + (msg.fname || "tw_export"),
+        conflictAction: "uniquify",
+      },
+      (downloadId) => {
+        if (chrome.runtime.lastError) {
+          console.error("다운로드 실패:", chrome.runtime.lastError.message, msg.fname);
+          chrome.action.setBadgeBackgroundColor({ color: "#d3543f" });
+          chrome.action.setBadgeText({ text: "DL!" });
+          setTimeout(() => chrome.action.setBadgeText({ text: "" }), 5000);
+        } else {
+          console.log("다운로드 시작:", msg.fname, "id=", downloadId);
+        }
+        sendResponse({ ok: !chrome.runtime.lastError, id: downloadId });
+      },
+    );
+    return true; // sendResponse를 비동기로 호출함을 표시
   }
   if (msg && msg.__twc === "brief" && typeof msg.content === "string") {
     exportBrief(msg.content, msg.fname);
