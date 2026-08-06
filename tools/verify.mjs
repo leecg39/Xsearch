@@ -3,7 +3,7 @@
 // 2) 확장: dist-extension/의 manifest·injected.js·options.js 치환 상태 확인
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
-import { toBookmarklet, decodeBmCode, stripPrefix } from "./lib.mjs";
+import { toBookmarklet, decodeBmCode, stripPrefix, prepareCollectorSource } from "./lib.mjs";
 
 const root = new URL("../", import.meta.url);
 const read = (p) => fs.readFileSync(new URL(p, root), "utf8");
@@ -14,12 +14,11 @@ const ng = (msg) => {
   failed = 1;
 };
 
-const version = JSON.parse(read("package.json")).version;
-const src = read("src/collector.js").replaceAll("__TWC_VERSION__", version);
+const { version, src } = prepareCollectorSource(root);
 
 // 1) 북마클릿: 빌드 산출물이 소스와 일치하는지
 console.log("[북마클릿]");
-const bmBuilt = decodeBmCode(read(`dist/tweet-collector-v${version}.html`));
+const bmBuilt = decodeBmCode(read(`dist/xsearch-v${version}.html`));
 // 접두사(javascript:void)는 포맷이 다를 수 있으므로 벗긴 뒤 코드 본문만 비교
 const normSrc = stripPrefix(await toBookmarklet(src));
 const normBuilt = stripPrefix(await toBookmarklet(stripPrefix(bmBuilt)));
@@ -40,6 +39,14 @@ try {
   }
   for (const f of ["background.js", "bridge.js", "options.html", "options.js", "injected.js"]) {
     if (!fs.existsSync(new URL("dist-extension/" + f, root))) ng(`누락: dist-extension/${f}`);
+  }
+  // 아이콘이 바이트 단위로 동일하게 복사됐는지 (텍스트 재저장 시 깨짐 감지)
+  for (const n of [16, 32, 48, 128]) {
+    const a = new URL(`ext/icon${n}.png`, root);
+    const b = new URL(`dist-extension/icon${n}.png`, root);
+    if (!fs.existsSync(b)) ng(`누락: dist-extension/icon${n}.png`);
+    else if (!fs.readFileSync(a).equals(fs.readFileSync(b))) ng(`icon${n}.png 손상 (바이트 불일치)`);
+    else ok(`icon${n}.png 복사 무결`);
   }
   const injected = read("dist-extension/injected.js");
   if (injected === src) {

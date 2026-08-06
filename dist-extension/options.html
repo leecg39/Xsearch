@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>트윗 수집기 설정</title>
+<title>Xsearch 설정</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:system-ui,-apple-system,sans-serif;background:#f7f9fa;color:#0f1419;padding:32px;display:flex;justify-content:center}
@@ -26,8 +26,8 @@ button.ghost{background:#eff3f4;color:#0f1419}
 </head>
 <body>
 <div class="wrap">
-  <h1>🐦 트윗 수집기 설정</h1>
-  <p class="sub">변경 후 저장하면 다음 수집부터 적용됩니다. 정규식은 비워두면 기본값 사용.</p>
+  <h1><img src="icon48.png" alt="Xsearch" style="width:26px;height:26px;vertical-align:-5px;margin-right:6px">Xsearch 설정</h1>
+  <p class="sub">변경 후 저장하면 다음 수집부터 적용됩니다. 정규식은 비워두면 기본값 사용. 브리핑 빌더는 <code>npm run news</code>로 실행하세요.</p>
 
   <div class="card">
     <div class="row">
@@ -48,6 +48,17 @@ button.ghost{background:#eff3f4;color:#0f1419}
       </div>
     </div>
     <label class="ck"><input type="checkbox" id="autoStart"> x.com 접속 시 자동으로 수집 시작</label>
+  </div>
+
+  <div class="card">
+    <label>브리핑 내보내기<span class="hint">수집분을 로컬 'Xsearch 뉴스 빌더'로 보내 '오늘의 AI 브리핑' HTML을 만듭니다 (npm run news)</span></label>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1;min-width:260px">
+        <label for="builderUrl">빌더 주소</label>
+        <input type="text" id="builderUrl" style="width:100%;padding:6px 8px;border:1px solid #cfd9de;border-radius:8px;font-size:.85rem" placeholder="http://127.0.0.1:8787">
+      </div>
+    </div>
+    <label class="ck" style="margin-top:8px"><input type="checkbox" id="briefAuto"> 수집 완료 시 자동으로 브리핑 내보내기 (완료 패널의 버튼을 누르지 않아도 전송)</label>
   </div>
 
   <div class="card">

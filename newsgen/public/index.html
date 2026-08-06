@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xsearch 뉴스 빌더</title>
+<link rel="stylesheet" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{--bg:#fafaf7;--text:#1a1a1a;--muted:#6b6b66;--accent:#c65545;--accent-soft:#f0e6e2;--border:#e8e6df;--surface:#fff;--ok:#3a9d63;--warn:#d99a2b;--err:#d3543f}
+*{box-sizing:border-box}
+body{font-family:'Pretendard',-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:40px 20px 80px;line-height:1.65;letter-spacing:-0.01em}
+.wrap{max-width:760px;margin:0 auto}
+header{margin-bottom:28px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-badge{width:38px;height:38px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;letter-spacing:0}
+h1{font-size:1.5em;font-weight:800;margin:0;letter-spacing:-0.02em}
+.sub{color:var(--muted);font-size:.92em;margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.card h2{font-size:1.02em;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px}
+.card h2 .step-no{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+/* 드롭존 */
+.drop{border:2px dashed var(--border);border-radius:12px;padding:34px 20px;text-align:center;cursor:pointer;transition:all .15s;color:var(--muted)}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.drop .big{font-size:2em;margin-bottom:6px}
+.drop b{color:var(--text)}
+.drop.loaded{border-style:solid;border-color:var(--ok);background:#f2f9f4;color:var(--text)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:.84em;color:var(--muted)}
+.chip b{color:var(--text)}
+/* 폼 */
+.row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.field{flex:1;min-width:180px}
+label{display:block;font-size:.83em;font-weight:600;color:var(--muted);margin-bottom:5px}
+input[type=text],input[type=password],input[type=date],select{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.94em;font-family:inherit;background:var(--surface);color:var(--text)}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+.seg{display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.seg label{flex:1;margin:0;padding:10px 8px;text-align:center;font-size:.9em;font-weight:600;color:var(--muted);cursor:pointer;transition:all .12s;border-right:1px solid var(--border)}
+.seg label:last-child{border-right:0}
+.seg input{display:none}
+.seg input:checked+span{color:var(--accent)}
+.seg label:has(input:checked){background:var(--accent-soft);color:var(--accent)}
+.seg .seg-desc{display:block;font-size:.82em;font-weight:400;margin-top:2px}
+.inline{display:flex;align-items:center;gap:7px;font-size:.88em;color:var(--text);margin:6px 0;cursor:pointer}
+.inline input{accent-color:var(--accent)}
+.mini-btn{padding:8px 12px;border:1px solid var(--border);background:var(--surface);border-radius:8px;font-size:.85em;cursor:pointer;color:var(--muted);white-space:nowrap;font-family:inherit}
+.mini-btn:hover{border-color:var(--accent);color:var(--accent)}
+.badge{display:inline-block;font-size:.75em;padding:2px 8px;border-radius:10px;background:#eef7f1;color:var(--ok);border:1px solid #cfe8d8;margin-left:6px}
+/* SuperGrok 연결 패널 */
+.grok-panel{border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;background:var(--bg)}
+.grok-status{display:flex;align-items:center;gap:9px;font-size:.92em;font-weight:600;flex-wrap:wrap}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot.on{background:var(--ok);box-shadow:0 0 0 3px #e2f2e8}
+.dot.off{background:#c9c5bb;box-shadow:0 0 0 3px #eeece5}
+.dot.wait{background:var(--warn);box-shadow:0 0 0 3px #f7ecd6}
+.grok-flow{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);font-size:.9em;display:flex;flex-direction:column;gap:10px}
+.grok-code-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.grok-code{font-family:ui-monospace,Menlo,monospace;font-size:1.5em;font-weight:800;letter-spacing:.12em;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 18px;color:var(--accent)}
+details{margin-top:6px}
+summary{cursor:pointer;font-size:.88em;color:var(--muted);font-weight:600}
+details[open] summary{margin-bottom:10px}
+/* 생성 버튼 */
+.go{width:100%;padding:15px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:1.05em;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all .15s;box-shadow:0 4px 14px rgba(198,85,69,.25)}
+.go:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 18px rgba(198,85,69,.32)}
+.go:disabled{background:#d8d5cd;cursor:not-allowed;box-shadow:none}
+/* 진행 상태 */
+.steps{display:flex;flex-direction:column;gap:10px}
+.pstep{display:flex;align-items:center;gap:10px;font-size:.93em;color:var(--muted)}
+.pstep .ico{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;background:var(--bg);border:1px solid var(--border);flex-shrink:0}
+.pstep.on{color:var(--text);font-weight:600}
+.pstep.on .ico{border-color:var(--accent);color:var(--accent)}
+.pstep.done{color:var(--ok)}
+.pstep.done .ico{background:#eef7f1;border-color:#cfe8d8;color:var(--ok)}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.detail-line{font-size:.85em;color:var(--muted);margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);display:flex;justify-content:space-between;gap:10px}
+.error-box{background:#fdf1ef;border:1px solid #f2c9c2;color:var(--err);border-radius:10px;padding:12px 16px;font-size:.9em;margin-top:12px;word-break:break-all}
+/* 결과 */
+.result-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.result-title{font-weight:800;color:var(--ok)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-block;padding:9px 16px;border-radius:9px;font-size:.88em;font-weight:700;cursor:pointer;text-decoration:none;border:1px solid var(--border);color:var(--text);background:var(--surface);font-family:inherit}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{opacity:.92;color:#fff}
+iframe{width:100%;height:640px;border:1px solid var(--border);border-radius:12px;background:#fff}
+/* 이력 */
+.hist{list-style:none;margin:0;padding:0}
+.hist li{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);font-size:.92em;flex-wrap:wrap}
+.hist li:last-child{border-bottom:0}
+.hist a{color:var(--accent);text-decoration:none;font-weight:700}
+.hist a:hover{text-decoration:underline}
+.hist .meta{color:var(--muted);font-size:.85em;margin-left:auto}
+.hide{display:none!important}
+footer{color:var(--muted);font-size:.8em;text-align:center;margin-top:30px}
+@media(max-width:560px){body{padding:20px 12px 60px}.card{padding:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="logo">
+    <div class="logo-badge"><img src="/icon32.png" alt="Xsearch" style="width:22px;height:22px;border-radius:5px"></div>
+    <div>
+      <h1>Xsearch 뉴스 빌더</h1>
+      <div class="sub">Xsearch 수집 JSON → '오늘의 AI 브리핑' 형태의 데일리 브리핑 HTML</div>
+    <div>
+      <h1>5분 AI 뉴스 빌더</h1>
+      <div class="sub">Xsearch 수집 JSON → fiv.co.kr/news 형태의 데일리 브리핑 HTML</div>
+    </div>
+    <a class="btn" href="/archive" target="_blank" style="margin-left:auto">🗞 아카이브</a>
+  </div>
+</header>
+
+<!-- 1. 파일 업로드 -->
+<section class="card">
+  <h2><span class="step-no">1</span>수집 JSON 업로드</h2>
+  <div class="drop" id="drop">
+    <div class="big">📄</div>
+    <div id="dropMsg"><b>tw_YYYY-MM-DD.json</b> 파일을 끌어다 놓거나 클릭해서 선택하세요</div>
+    <div class="chips hide" id="fileChips"></div>
+  </div>
+  <input type="file" id="fileInput" accept=".json,application/json" class="hide">
+  <div class="row" style="margin-top:14px;margin-bottom:0">
+    <div class="field" style="max-width:220px">
+      <label for="dateInput">보고서 날짜 (파일명에서 자동 인식)</label>
+      <input type="date" id="dateInput">
+    </div>
+  </div>
+</section>
+
+<!-- 2. 생성 설정 -->
+<section class="card">
+  <h2><span class="step-no">2</span>생성 설정</h2>
+  <div class="seg" style="margin-bottom:14px">
+    <label><input type="radio" name="mode" value="ai" checked><span><b>🤖 AI 편집 브리핑</b><span class="seg-desc">LLM이 뉴스를 선별·편집 (fiv 스타일)</span></span></label>
+    <label><input type="radio" name="mode" value="digest"><span><b>⚡ 빠른 다이제스트</b><span class="seg-desc">API 키 불필요 · 규칙 기반 상위 트윗</span></span></label>
+  </div>
+
+  <div id="aiSettings">
+    <div class="row">
+      <div class="field" style="max-width:220px">
+        <label for="provider">AI 프로바이더</label>
+        <select id="provider">
+          <option value="grok" selected>xAI Grok — SuperGrok 구독</option>
+          <option value="anthropic">Anthropic (Claude)</option>
+          <option value="openai">OpenAI (GPT)</option>
+          <option value="gemini">Google (Gemini)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="model">모델명</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="model" list="modelList" placeholder="모델명">
+          <datalist id="modelList"></datalist>
+          <button class="mini-btn" id="loadModels" type="button">목록 조회</button>
+        </div>
+      </div>
+    </div>
+    <!-- SuperGrok 구독 연결 (grok 전용) -->
+    <div id="grokPanel" class="grok-panel">
+      <div class="grok-status">
+        <span id="grokDot" class="dot off"></span>
+        <span id="grokStatusText">연결 확인 중…</span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="mini-btn" id="grokConnect" type="button">SuperGrok 계정 연결</button>
+          <button class="mini-btn hide" id="grokLogout" type="button">연결 해제</button>
+        </div>
+      </div>
+      <div id="grokFlow" class="grok-flow hide">
+        <div id="egoLine">🦉 <b>ego 브라우저</b>에서 승인 페이지를 여는 중…</div>
+        <div>열린 창에서 아래 코드가 맞는지 확인하고 <b>X 계정으로 승인</b>하세요. 승인되면 이 화면이 자동으로 연결됩니다.</div>
+        <div class="grok-code-row">
+          <code id="grokCode" class="grok-code">----</code>
+          <a id="grokLink" target="_blank" rel="noopener" style="font-size:.85em">직접 열기(폴백) ↗</a>
+        </div>
+        <div class="sub"><span class="spin" style="width:10px;height:10px"></span> 승인 대기 중…</div>
+      </div>
+      <div class="sub" style="margin-top:8px">유료 API 키(<code>xai-…</code>) 없이 SuperGrok/X Premium+ 구독 쿼터로 생성합니다. 사용량은 구독에 포함됩니다.</div>
+    </div>
+
+    <div class="row" id="apiKeyRow">
+      <div class="field">
+        <label for="apiKey"><span id="apiKeyLabel">API 키</span> <span id="envBadge" class="badge hide">서버 환경변수 감지됨 — 비워도 됩니다</span></label>
+        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+        <label class="inline" style="margin-top:8px"><input type="checkbox" id="saveKey"> 이 브라우저에 키 저장 (localStorage)</label>
+      </div>
+    </div>
+  </div>
+
+  <details>
+    <summary>고급 옵션</summary>
+    <label class="inline"><input type="checkbox" id="inlineImages" checked> 트윗 이미지를 base64로 내장 (단일 파일, fiv 원본과 동일)</label>
+    <label class="inline"><input type="checkbox" id="siteScripts"> fiv.co.kr 배포용 스크립트 포함 (방문자 트래커·구독 CTA·애드센스 — 로컬 미리보기에서는 꺼두세요)</label>
+    <div class="row" style="margin-top:10px;margin-bottom:0">
+      <div class="field">
+        <label for="baseUrl">canonical 베이스 URL</label>
+        <input type="text" id="baseUrl" value="https://fiv.co.kr/news/">
+      </div>
+    </div>
+  </details>
+</section>
+
+<button class="go" id="go" disabled>먼저 JSON 파일을 업로드하세요</button>
+
+<!-- 진행 상태 -->
+<section class="card hide" id="progressCard" style="margin-top:16px">
+  <h2>⏳ 생성 중</h2>
+  <div class="steps" id="steps"></div>
+  <div class="detail-line"><span id="detail">-</span><span id="elapsed">0초</span></div>
+  <div class="error-box hide" id="errorBox"></div>
+</section>
+
+<!-- 결과 -->
+<section class="card hide" id="resultCard">
+  <div class="result-head">
+    <span class="result-title">✅ 생성 완료 — <span id="resultFile"></span></span>
+    <div class="btns">
+      <a class="btn primary" id="openBtn" target="_blank">새 탭에서 열기</a>
+      <a class="btn" id="dlBtn" download>HTML 다운로드</a>
+    </div>
+  </div>
+  <div class="sub" id="resultMeta" style="margin-bottom:10px"></div>
+  <iframe id="preview" title="미리보기"></iframe>
+</section>
+
+<!-- 생성 이력 -->
+<section class="card">
+  <h2>🗂 생성 이력
+    <span style="margin-left:auto;display:flex;gap:8px">
+      <a class="mini-btn" href="/archive" target="_blank" style="text-decoration:none">아카이브 열기</a>
+      <button class="mini-btn" id="refreshHist" type="button">새로고침</button>
+    </span>
+  </h2>
+  <ul class="hist" id="hist"><li style="color:var(--muted)">아직 없습니다</li></ul>
+</section>
+
+<footer>출력 파일은 <code id="outDir">newsgen/output/</code> 에 저장됩니다 · 서버는 127.0.0.1 전용</footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const state = { tweets: null, fileName: '', date: '' };
+
+const DEFAULT_MODELS = {
+  grok: ['grok-4.5', 'grok-build-0.1', 'grok-4.3'],
+  anthropic: ['claude-sonnet-5', 'claude-opus-5'],
+  openai: ['gpt-5.6', 'gpt-5.2-mini'],
+  gemini: ['gemini-3-pro', 'gemini-3-flash'],
+};
+const STEP_DEFS = [
+  ['preprocess', '트윗 전처리 (중복 제거·점수화·라벨)'],
+  ['llm', 'AI 편집 (뉴스 선별·작성)'],
+  ['render', 'HTML 렌더링'],
+  ['images', '이미지 base64 인라인'],
+  ['save', '파일 저장'],
+];
+
+// ---------- 설정 저장/복원 ----------
+function loadPrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem('newsgen_prefs') || '{}');
+    // provider2: 그록 기본 전환 이후 키 (이전 저장값은 무시하고 grok을 기본으로)
+    $('provider').value = p.provider2 || 'grok';
+    if (p.models) state.models = p.models;
+    $('model').value = (p.modelByProvider || {})[$('provider').value] || DEFAULT_MODELS[$('provider').value][0];
+    if (p.saveKey && p.apiKeys && p.apiKeys[$('provider').value]) {
+      $('apiKey').value = p.apiKeys[$('provider').value];
+      $('saveKey').checked = true;
+    }
+    if (typeof p.inlineImages === 'boolean') $('inlineImages').checked = p.inlineImages;
+    if (typeof p.siteScripts === 'boolean') $('siteScripts').checked = p.siteScripts;
+    if (p.baseUrl) $('baseUrl').value = p.baseUrl;
+  } catch {}
+  fillModelList();
+}
+function savePrefs() {
+  let p = {};
+  try { p = JSON.parse(localStorage.getItem('newsgen_prefs') || '{}'); } catch {}
+  p.provider2 = $('provider').value;
+  p.modelByProvider = p.modelByProvider || {};
+  p.modelByProvider[$('provider').value] = $('model').value;
+  p.saveKey = $('saveKey').checked;
+  p.apiKeys = p.apiKeys || {};
+  if ($('saveKey').checked) p.apiKeys[$('provider').value] = $('apiKey').value;
+  else delete p.apiKeys[$('provider').value];
+  p.inlineImages = $('inlineImages').checked;
+  p.siteScripts = $('siteScripts').checked;
+  p.baseUrl = $('baseUrl').value;
+  localStorage.setItem('newsgen_prefs', JSON.stringify(p));
+}
+function fillModelList(models) {
+  const dl = $('modelList');
+  dl.innerHTML = '';
+  (models || DEFAULT_MODELS[$('provider').value] || []).forEach((m) => {
+    const o = document.createElement('option');
+    o.value = m;
+    dl.appendChild(o);
+  });
+}
+
+// ---------- 파일 업로드 ----------
+const drop = $('drop');
+drop.addEventListener('click', () => $('fileInput').click());
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', (e) => {
+  e.preventDefault();
+  drop.classList.remove('over');
+  if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]);
+});
+$('fileInput').addEventListener('change', (e) => { if (e.target.files[0]) readFile(e.target.files[0]); });
+
+function applyData(data, name, sizeBytes, sourceLabel) {
+  if (!Array.isArray(data) || data.length === 0) throw new Error('배열이 비어 있습니다');
+  if (!data.some((t) => t && (t.text || t.handle))) throw new Error('Xsearch 수집 형식(text/handle)이 아닙니다');
+  state.tweets = data;
+  state.fileName = name;
+  const m = name.match(/(\d{4}-\d{2}-\d{2})/);
+  state.date = m ? m[1] : maxDateKst(data);
+  $('dateInput').value = state.date;
+  showFileInfo(data, { name, size: sizeBytes }, sourceLabel);
+  updateGoButton();
+}
+
+function readFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      applyData(JSON.parse(reader.result), file.name, file.size);
+    } catch (err) {
+      state.tweets = null;
+      drop.classList.remove('loaded');
+      $('dropMsg').innerHTML = '⚠️ JSON을 읽지 못했습니다: <b>' + err.message + '</b> — 다시 선택하세요';
+      $('fileChips').classList.add('hide');
+      updateGoButton();
+    }
+  };
+  reader.readAsText(file);
+}
+
+// 확장 프로그램 '브리핑 내보내기'로 전달된 데이터 자동 로드 (?import=id)
+async function loadImport() {
+  const id = new URLSearchParams(location.search).get('import');
+  if (!id) return;
+  try {
+    const res = await fetch('/api/import/' + encodeURIComponent(id));
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
+    const size = new Blob([JSON.stringify(j.tweets)]).size;
+    applyData(j.tweets, j.fileName || 'tw_import.json', size, '확장에서 가져옴');
+    history.replaceState(null, '', '/'); // 새로고침 시 만료 오류 방지
+  } catch (e) {
+    $('dropMsg').innerHTML = '⚠️ 확장에서 데이터를 가져오지 못했습니다: <b>' + e.message + '</b>';
+  }
+}
+function maxDateKst(data) {
+  let max = 0;
+  for (const t of data) { const v = Date.parse(t.time); if (v && v > max) max = v; }
+  const d = new Date((max || Date.now()) + 9 * 3600 * 1000);
+  return d.toISOString().slice(0, 10);
+}
+function showFileInfo(data, file, sourceLabel) {
+  drop.classList.add('loaded');
+  $('dropMsg').innerHTML = '✅ <b>' + file.name + '</b> ' + (sourceLabel || '업로드됨') + ' (클릭해서 교체)';
+  const langs = {};
+  let ai = 0;
+  const AI_RE = /\bai\b|llm|gpt|openai|claude|anthropic|gemini|deepmind|agent|모델|에이전트|인공지능|人工知能|人工智能/i;
+  for (const t of data) {
+    if (t.lang) langs[t.lang] = (langs[t.lang] || 0) + 1;
+    if (AI_RE.test(t.text || '')) ai++;
+  }
+  const top = Object.entries(langs).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => k + ' ' + v).join(' · ');
+  $('fileChips').innerHTML =
+    '<span class="chip">트윗 <b>' + data.length.toLocaleString() + '</b>개</span>' +
+    '<span class="chip">AI 관련 추정 <b>' + ai.toLocaleString() + '</b>개</span>' +
+    '<span class="chip">언어 <b>' + top + '</b></span>' +
+    '<span class="chip">크기 <b>' + (file.size / 1024 / 1024).toFixed(1) + 'MB</b></span>';
+  $('fileChips').classList.remove('hide');
+}
+
+// ---------- 설정 UI 동작 ----------
+function refreshProviderUI() {
+  const isGrok = $('provider').value === 'grok';
+  $('grokPanel').classList.toggle('hide', !isGrok);
+  $('apiKeyLabel').textContent = isGrok ? '액세스 토큰 직접 입력 (선택 — 계정 연결 시 불필요)' : 'API 키';
+  $('apiKey').placeholder = isGrok ? 'SuperGrok OAuth 액세스 토큰 (선택)' : 'sk-...';
+  if (isGrok) refreshGrokStatus();
+}
+$('provider').addEventListener('change', () => {
+  let p = {};
+  try { p = JSON.parse(localStorage.getItem('newsgen_prefs') || '{}'); } catch {}
+  $('model').value = (p.modelByProvider || {})[$('provider').value] || DEFAULT_MODELS[$('provider').value][0];
+  $('apiKey').value = (p.apiKeys || {})[$('provider').value] || '';
+  fillModelList();
+  checkEnv();
+  refreshProviderUI();
+});
+
+// ---------- SuperGrok 연결 ----------
+let grokPollTimer = null;
+function setGrokStatus(cls, text) {
+  $('grokDot').className = 'dot ' + cls;
+  $('grokStatusText').textContent = text;
+}
+async function refreshGrokStatus() {
+  try {
+    const s = await (await fetch('/api/grok/status')).json();
+    if (s.connected) {
+      setGrokStatus('on', 'SuperGrok 연결됨' + (s.account ? ' — ' + s.account : '') +
+        (s.expiresAt ? ' (토큰 자동 갱신)' : ''));
+      $('grokConnect').classList.add('hide');
+      $('grokLogout').classList.remove('hide');
+      $('grokFlow').classList.add('hide');
+      stopGrokPoll();
+    } else if (s.pending) {
+      setGrokStatus('wait', '승인 대기 중 — ego 브라우저에서 코드를 확인하세요');
+      if (s.userCode) $('grokCode').textContent = s.userCode;
+      if (s.verificationUri) $('grokLink').href = s.verificationUri;
+      const ego = s.egoOpen;
+      $('egoLine').innerHTML =
+        ego === 'opening' ? '🦉 <b>ego 브라우저</b>에서 승인 페이지를 여는 중…'
+        : ego && ego.ok ? '🦉 <b>ego 브라우저</b>에 승인 페이지를 열었습니다 (제어권을 넘겼으니 그 창에서 승인하세요)'
+        : ego && ego.error ? '⚠️ ego 브라우저 실행 실패: ' + ego.error + ' — 아래 "직접 열기"를 이용하세요'
+        : '';
+      $('grokFlow').classList.remove('hide');
+      $('grokConnect').classList.add('hide');
+      $('grokLogout').classList.add('hide');
+      startGrokPoll();
+    } else {
+      setGrokStatus('off', s.error ? '연결 실패: ' + s.error : '미연결 — SuperGrok/X Premium+ 구독 계정으로 연결하세요');
+      $('grokConnect').classList.remove('hide');
+      $('grokLogout').classList.add('hide');
+      $('grokFlow').classList.add('hide');
+      stopGrokPoll();
+    }
+  } catch {
+    setGrokStatus('off', '서버 상태 확인 실패');
+  }
+}
+function startGrokPoll() {
+  if (grokPollTimer) return;
+  grokPollTimer = setInterval(refreshGrokStatus, 2000);
+}
+function stopGrokPoll() {
+  clearInterval(grokPollTimer);
+  grokPollTimer = null;
+}
+$('grokConnect').addEventListener('click', async () => {
+  $('grokConnect').disabled = true;
+  try {
+    const res = await fetch('/api/grok/connect', { method: 'POST' });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
+    $('grokCode').textContent = j.user_code;
+    $('grokLink').href = j.verification_uri_complete || j.verification_uri;
+    $('egoLine').innerHTML = '🦉 <b>ego 브라우저</b>에서 승인 페이지를 여는 중…';
+    $('grokFlow').classList.remove('hide');
+    $('grokConnect').classList.add('hide');
+    setGrokStatus('wait', '승인 대기 중 — ego 브라우저에서 코드를 확인하세요');
+    startGrokPoll();
+  } catch (e) {
+    setGrokStatus('off', '연결 시작 실패: ' + e.message);
+  } finally {
+    $('grokConnect').disabled = false;
+  }
+});
+$('grokLogout').addEventListener('click', async () => {
+  await fetch('/api/grok/logout', { method: 'POST' });
+  refreshGrokStatus();
+});
+document.querySelectorAll('input[name=mode]').forEach((r) =>
+  r.addEventListener('change', () => {
+    $('aiSettings').style.display = modeVal() === 'ai' ? '' : 'none';
+    updateGoButton();
+  }));
+function modeVal() { return document.querySelector('input[name=mode]:checked').value; }
+
+$('loadModels').addEventListener('click', async () => {
+  $('loadModels').textContent = '조회 중…';
+  try {
+    const res = await fetch('/api/models', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ provider: $('provider').value, apiKey: $('apiKey').value }),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || res.status);
+    fillModelList(j.models);
+    $('loadModels').textContent = j.models.length + '개 로드됨';
+    setTimeout(() => { $('loadModels').textContent = '목록 조회'; }, 2500);
+  } catch (e) {
+    alert('모델 목록 조회 실패: ' + e.message);
+    $('loadModels').textContent = '목록 조회';
+  }
+});
+
+async function checkEnv() {
+  try {
+    const j = await (await fetch('/api/env')).json();
+    const has = j.envKeys[$('provider').value];
+    $('envBadge').classList.toggle('hide', !has);
+    if (j.outputDir) $('outDir').textContent = j.outputDir;
+  } catch {}
+}
+
+function updateGoButton() {
+  const btn = $('go');
+  if (!state.tweets) { btn.disabled = true; btn.textContent = '먼저 JSON 파일을 업로드하세요'; return; }
+  btn.disabled = false;
+  btn.textContent = modeVal() === 'ai' ? '🤖 AI 편집 브리핑 생성' : '⚡ 다이제스트 생성';
+}
+
+// ---------- 생성 실행 ----------
+let timer = null;
+$('go').addEventListener('click', async () => {
+  savePrefs();
+  const mode = modeVal();
+  const date = $('dateInput').value || state.date;
+  $('go').disabled = true;
+  $('resultCard').classList.add('hide');
+  $('errorBox').classList.add('hide');
+  $('progressCard').classList.remove('hide');
+  renderSteps(mode, 'preprocess');
+  $('progressCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        tweets: state.tweets, date, mode,
+        provider: $('provider').value, model: $('model').value.trim(), apiKey: $('apiKey').value,
+        inlineImages: $('inlineImages').checked, siteScripts: $('siteScripts').checked,
+        baseUrl: $('baseUrl').value.trim(),
+      }),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
+    pollJob(j.jobId, mode);
+  } catch (e) {
+    showError(e.message);
+  }
+});
+
+function renderSteps(mode, current, doneUpTo = -1) {
+  const defs = STEP_DEFS.filter(([k]) => !(mode === 'digest' && k === 'llm'))
+    .filter(([k]) => !(k === 'images' && !$('inlineImages').checked));
+  const curIdx = defs.findIndex(([k]) => k === current);
+  $('steps').innerHTML = defs.map(([k, label], i) => {
+    const done = doneUpTo >= 0 ? i <= doneUpTo : i < curIdx;
+    const on = k === current && doneUpTo < 0;
+    const ico = done ? '✓' : on ? '<span class="spin"></span>' : (i + 1);
+    return '<div class="pstep ' + (done ? 'done' : on ? 'on' : '') + '"><span class="ico">' + ico + '</span>' + label + '</div>';
+  }).join('');
+}
+
+function pollJob(id, mode) {
+  clearInterval(timer);
+  timer = setInterval(async () => {
+    try {
+      const j = await (await fetch('/api/job/' + id)).json();
+      $('detail').textContent = j.detail || j.step || '';
+      $('elapsed').textContent = j.elapsed + '초 경과';
+      if (j.status === 'running') { renderSteps(mode, j.step); return; }
+      clearInterval(timer);
+      if (j.status === 'error') { showError(j.error); return; }
+      renderSteps(mode, 'done', 99);
+      showResult(j.result);
+    } catch {}
+  }, 1000);
+}
+
+function showError(msg) {
+  clearInterval(timer);
+  $('errorBox').textContent = '⚠️ ' + msg;
+  $('errorBox').classList.remove('hide');
+  $('go').disabled = false;
+  updateGoButton();
+}
+
+function showResult(r) {
+  $('go').disabled = false;
+  updateGoButton();
+  $('resultCard').classList.remove('hide');
+  $('resultFile').textContent = r.file;
+  $('openBtn').href = r.url;
+  $('dlBtn').href = r.url;
+  $('dlBtn').setAttribute('download', r.file);
+  $('resultMeta').textContent =
+    (r.mode === 'ai' ? '편집 섹션 ' + r.sections + '개 · ' : '') +
+    '후보 트윗 ' + r.candidates + '개 · 이미지 ' + r.figures + '장 · ' + (r.bytes / 1024 / 1024).toFixed(2) + 'MB';
+  $('preview').src = r.url + '?t=' + Date.now();
+  loadHistory();
+  $('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ---------- 이력 ----------
+async function loadHistory() {
+  try {
+    const j = await (await fetch('/api/list')).json();
+    if (!j.items.length) return;
+    $('hist').innerHTML = j.items.map((it) =>
+      '<li><a href="' + it.url + '" target="_blank">' + it.file + '</a>' +
+      '<span class="meta">' + (it.bytes / 1024 / 1024).toFixed(2) + 'MB · ' +
+      new Date(it.mtime).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + '</span></li>'
+    ).join('');
+  } catch {}
+}
+$('refreshHist').addEventListener('click', loadHistory);
+
+loadPrefs();
+checkEnv();
+loadHistory();
+updateGoButton();
+refreshProviderUI();
+loadImport();
+</script>
+</body>
+</html>

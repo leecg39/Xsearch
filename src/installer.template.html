@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>트윗 수집기 v{{VERSION}}</title>
+<title>Xsearch v{{VERSION}}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:system-ui,-apple-system,sans-serif;background:#eef2f6;padding:24px;display:flex;justify-content:center}
@@ -33,13 +33,31 @@ td b{color:#0f1419}
 <div class="wrap">
 
 <div class="card">
-  <h1>🐦 트윗 수집기</h1>
+  <h1><img src="{{LOGO_B64}}" alt="Xsearch" style="height:104px;display:block;margin:-6px 0 2px -8px"></h1>
   <span class="ver">v{{VERSION}} — Chrome 확장 프로그램 지원</span>
   <div class="install">
     <p class="hint">👇 아래 버튼을 <b>북마크바로 드래그</b>하세요</p>
-    <a class="bm-btn" id="bmLink" href="#">🐦 트윗수집 v{{VERSION}}</a>
+    <a class="bm-btn" id="bmLink" href="#">Xsearch v{{VERSION}}</a>
   </div>
   <p class="warn">※ 주소창에 직접 붙여넣으면 Chrome이 <code>javascript:</code> 접두사를 지웁니다. 반드시 북마크로 등록해서 사용하세요.</p>
+</div>
+
+<div class="card">
+  <h2>v4.9.0 — Xsearch 리브랜딩</h2>
+  <table>
+    <tr><th>#</th><th>내용</th></tr>
+    <tr><td>이름 변경</td><td>'트윗 수집기'가 <b>Xsearch</b>로 바뀌었다. 확장 아이콘·설치 페이지·수집 패널에 새 로고(새+별) 적용, 산출물은 <code>dist/xsearch-v{{VERSION}}.html</code>.</td></tr>
+    <tr><td>발행 브랜드</td><td>뉴스 빌더가 만드는 브리핑 페이지·아카이브의 발행명은 <b>'오늘의 AI 브리핑'</b>으로 변경 (기존 '5분 AI 뉴스').</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>v4.8.0 — 브리핑 내보내기</h2>
+  <table>
+    <tr><th>#</th><th>내용</th></tr>
+    <tr><td>브리핑 내보내기</td><td>수집 완료 패널에 <b>브리핑 내보내기</b> 버튼 추가 — 수집분을 로컬 '5분 AI 뉴스 빌더'(<code>npm run news</code>, 127.0.0.1:8787)로 보내 fiv.co.kr/news 형태의 브리핑 HTML을 만든다. 확장 옵션에서 빌더 주소·자동 내보내기 설정.</td></tr>
+    <tr><td>SuperGrok 생성</td><td>빌더가 유료 API 키 없이 <b>SuperGrok/X Premium+ 구독 OAuth</b>(기기 코드)로 그록 모델을 호출해 브리핑을 생성.</td></tr>
+  </table>
 </div>
 
 <div class="card">

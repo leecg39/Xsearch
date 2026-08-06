@@ -1,7 +1,7 @@
-// 트윗 수집기 — 북마클릿 본체 소스
+// Xsearch — 북마클릿 본체 소스
 // x.com 페이지에서 실행되어 자동 스크롤하며 트윗을 수집하고 CSV/JSON으로 저장한다.
 // 빌드(`npm run build`) 시 공백 압축 + javascript: 접두사가 붙어 설치 페이지에 삽입된다.
-// 4.7.0 플레이스홀더는 빌드 시 package.json의 version으로 치환된다.
+// 4.9.0 플레이스홀더는 빌드 시 package.json의 version으로 치환된다.
 void (async function twcMain() {
   var KEY = "_twc";
   // 확장 프로그램 모드: background가 주입한 설정. 없으면 북마클릿 모드(기존 동작).
@@ -33,11 +33,11 @@ void (async function twcMain() {
       : 0;
   }
   var target = EXT
-    ? Math.max(1, parseInt(EXT.target, 10) || 1000)
+    ? Math.max(1, parseInt(EXT.target, 10) || 200)
     : parseInt(
         prompt(
           "수집할 트윗 갯수:",
-          resume && saved ? String(Math.max(1000, saved.length + 200)) : "1000",
+          resume && saved ? String(Math.max(200, saved.length + 200)) : "200",
         ),
         10,
       );
@@ -128,7 +128,7 @@ void (async function twcMain() {
   var root = host.attachShadow({ mode: "open" });
   root.innerHTML =
     CSS +
-    '<div class="p"><div class="hd" id="hd"><span id="ico">🐦</span><span class="ttl" id="ttl">트윗 수집기</span><span class="ver">v4.7.0</span><button class="ic" id="min" title="접기">─</button><button class="ic hide" id="cls" title="닫기">✕</button></div><div class="bd" id="bd"><div class="num"><b id="cnt">0</b><s id="tgt"></s></div><div class="bar"><i id="bar"></i></div><div class="met"><span id="tm">0:00</span><span id="eta"></span><span id="rate"></span></div><div class="st"><span class="dot" id="dot"></span><span id="msg">시작하는 중</span></div><div class="row"><button class="btn" id="pz" title="수집을 잠시 멈췄다가 다시 시작">일시정지</button><button class="btn dg" id="sp" title="지금까지 수집한 것을 저장하고 종료">중단·저장</button></div><div class="spd"><span class="lab">속도</span><button class="btn stp" id="fa" title="이동 사이 대기를 줄여 빠르게 (과하면 관련성↓·차단 위험)">빠르게</button><span class="val" id="dly"></span><button class="btn stp" id="sl" title="이동 사이 대기를 늘려 천천히 (관련성↑)">느리게</button></div><div class="row"><button class="btn" id="flt" title="수집 대상: 전체 ↔ AI만">필터 OFF</button></div><div class="foot hide" id="foot"><span id="apc"></span><span id="skp"></span><span id="fix"></span><span id="qw"></span></div></div></div>';
+    '<div class="p"><div class="hd" id="hd"><span id="ico"><img src="data:image/png;base64,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" alt="" style="width:15px;height:15px;vertical-align:-2px"></span><span class="ttl" id="ttl">Xsearch</span><span class="ver">v4.9.0</span><button class="ic" id="min" title="접기">─</button><button class="ic hide" id="cls" title="닫기">✕</button></div><div class="bd" id="bd"><div class="num"><b id="cnt">0</b><s id="tgt"></s></div><div class="bar"><i id="bar"></i></div><div class="met"><span id="tm">0:00</span><span id="eta"></span><span id="rate"></span></div><div class="st"><span class="dot" id="dot"></span><span id="msg">시작하는 중</span></div><div class="row"><button class="btn" id="pz" title="수집을 잠시 멈췄다가 다시 시작">일시정지</button><button class="btn dg" id="sp" title="지금까지 수집한 것을 저장하고 종료">중단·저장</button></div><div class="spd"><span class="lab">속도</span><button class="btn stp" id="fa" title="이동 사이 대기를 줄여 빠르게 (과하면 관련성↓·차단 위험)">빠르게</button><span class="val" id="dly"></span><button class="btn stp" id="sl" title="이동 사이 대기를 늘려 천천히 (관련성↑)">느리게</button></div><div class="row"><button class="btn" id="flt" title="수집 대상: 전체 ↔ AI만">필터 OFF</button></div><div class="foot hide" id="foot"><span id="apc"></span><span id="skp"></span><span id="fix"></span><span id="qw"></span></div></div></div>';
   doc.body.appendChild(host);
   function $(id) {
     return root.getElementById(id);
@@ -1045,7 +1045,7 @@ void (async function twcMain() {
     results.length.toLocaleString() +
     "</b><s>개 수집" +
     (skippedCount ? " · " + skippedCount + "건 제외" : "") +
-    '</s></div><div class="row"><button class="btn" id="dc">CSV</button><button class="btn" id="dj">JSON</button></div>';
+    '</s></div><div class="row"><button class="btn" id="dc">CSV</button><button class="btn" id="dj">JSON</button><button class="btn" id="db">브리핑 내보내기</button></div>';
   function download(content, mime, fname) {
     if (EXT) {
       // 확장 모드: bridge.js(content script)가 받아 chrome.downloads로 저장
@@ -1101,8 +1101,8 @@ void (async function twcMain() {
       .join("\n");
     download(head + body, "text/csv;charset=utf-8", "tw_" + dateStr + ".csv");
   };
-  $("dj").onclick = function () {
-    var data = results.map(function (it, i) {
+  function jsonData() {
+    return results.map(function (it, i) {
       return {
         no: i + 1,
         name: it.n,
@@ -1128,10 +1128,57 @@ void (async function twcMain() {
         articlePreview: it.ap || null,
       };
     });
+  }
+  $("dj").onclick = function () {
     download(
-      JSON.stringify(data, null, 2),
+      JSON.stringify(jsonData(), null, 2),
       "application/json;charset=utf-8",
       "tw_" + dateStr + ".json",
     );
   };
+  // 브리핑 내보내기: 수집분을 로컬 '5분 AI 뉴스 빌더'(newsgen)로 보낸다.
+  // 확장 모드는 background가 전송·탭 열기를 담당, 북마클릿 모드는 직접 fetch.
+  function sendBrief() {
+    var fname = "tw_" + dateStr + ".json";
+    var btn = $("db");
+    if (EXT) {
+      window.postMessage(
+        { __twc: "brief", content: JSON.stringify(jsonData()), fname: fname },
+        "*",
+      );
+      if (btn) {
+        btn.textContent = "빌더로 전송됨 — 새 탭 확인";
+        btn.disabled = true;
+      }
+      return;
+    }
+    var base = "http://127.0.0.1:8787";
+    fetch(base + "/api/import", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ fileName: fname, tweets: jsonData() }),
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (j) {
+        if (!j || !j.id) {
+          throw new Error("id 없음");
+        }
+        window.open(base + "/?import=" + j.id, "_blank");
+        if (btn) {
+          btn.textContent = "빌더로 전송됨";
+          btn.disabled = true;
+        }
+      })
+      .catch(function () {
+        alert(
+          "브리핑 빌더 서버(127.0.0.1:8787)에 연결하지 못했습니다.\n프로젝트 폴더에서 npm run news 를 실행한 뒤 다시 시도하세요.",
+        );
+      });
+  }
+  $("db").onclick = sendBrief;
+  if (EXT && EXT.briefAuto) {
+    sendBrief();
+  }
 })();

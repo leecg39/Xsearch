@@ -1,11 +1,12 @@
 {
-  "name": "tweet-collector",
-  "version": "4.7.0",
+  "name": "xsearch",
+  "version": "4.9.0",
   "private": true,
   "type": "module",
-  "description": "X(트위터) 게시물 수집 북마클릿 — 소스 분리 + 빌드 프로젝트",
+  "description": "Xsearch — X(트위터) 게시물 수집 북마클릿 + AI 브리핑 빌더",
   "scripts": {
     "build": "node build.mjs",
+    "news": "node newsgen/server.mjs",
     "dev": "node tools/dev.mjs",
     "verify": "node tools/verify.mjs",
     "check": "node --check src/collector.js"

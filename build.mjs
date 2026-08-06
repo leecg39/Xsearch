@@ -1,18 +1,16 @@
 // 빌드: src/collector.js → 북마클릿 문자열 → 설치 페이지 생성
-// 결과물: dist/tweet-collector-v{버전}.html  (버전은 package.json에서 관리)
+// 결과물: dist/xsearch-v{버전}.html  (버전은 package.json에서 관리)
 // `node build.mjs`로 직접 실행하거나, dev watcher(tools/dev.mjs)에서 build()를 재사용한다.
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
-import { toBookmarklet } from "./tools/lib.mjs";
+import { toBookmarklet, prepareCollectorSource } from "./tools/lib.mjs";
 
 const root = new URL("./", import.meta.url);
 const read = (p) => fs.readFileSync(new URL(p, root), "utf8");
 
 export async function build() {
-  const version = JSON.parse(read("package.json")).version;
-
-  // 1) 소스에 버전 주입
-  const src = read("src/collector.js").replaceAll("__TWC_VERSION__", version);
+  // 1) 소스에 버전·로고 주입 (verify.mjs와 동일한 치환)
+  const { version, src } = prepareCollectorSource(root);
 
   // 2) 공백 압축 + ASCII 이스케이프 → javascript: 북마클릿
   const bm = await toBookmarklet(src);
@@ -26,15 +24,19 @@ export async function build() {
     .replace(/</g, "\\u003c");
 
   // 4) 템플릿 주입
+  const logoLockup =
+    "data:image/png;base64," +
+    fs.readFileSync(new URL("assets/xsearch-logo.png", root)).toString("base64");
   const html = read("src/installer.template.html")
     .replaceAll("{{VERSION}}", version)
+    .replace("{{LOGO_B64}}", () => logoLockup)
     .replace("{{BM_CODE}}", () => literal); // 함수 치환: 리터럴 안의 '$' 패턴 오해석 방지
 
   if (/\{\{[A-Z_]+\}\}/.test(html)) {
     throw new Error("치환되지 않은 플레이스홀더가 남아 있습니다");
   }
 
-  const outName = `tweet-collector-v${version}.html`;
+  const outName = `xsearch-v${version}.html`;
   fs.mkdirSync(new URL("dist/", root), { recursive: true });
   fs.writeFileSync(new URL(`dist/${outName}`, root), html);
 
@@ -67,6 +69,13 @@ function buildExtension(srcWithVersion, version) {
     "{{RE_DROP}}": JSON.stringify(extractRegexSource(srcWithVersion, "reDrop")),
   };
   for (const f of fs.readdirSync(new URL("ext/", root))) {
+    const srcUrl = new URL("ext/" + f, root);
+    if (!fs.statSync(srcUrl).isFile()) continue;
+    // 아이콘 등 바이너리는 그대로 복사 (utf8 재저장 시 깨짐)
+    if (/\.(png|jpg|jpeg|webp|ico)$/i.test(f)) {
+      fs.copyFileSync(srcUrl, new URL(f, outDir));
+      continue;
+    }
     let content = read("ext/" + f);
     content = content.replaceAll("__TWC_VERSION__", version);
     for (const [ph, val] of Object.entries(reDefaults)) {

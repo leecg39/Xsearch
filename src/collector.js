@@ -1,4 +1,4 @@
-// 트윗 수집기 — 북마클릿 본체 소스
+// Xsearch — 북마클릿 본체 소스
 // x.com 페이지에서 실행되어 자동 스크롤하며 트윗을 수집하고 CSV/JSON으로 저장한다.
 // 빌드(`npm run build`) 시 공백 압축 + javascript: 접두사가 붙어 설치 페이지에 삽입된다.
 // __TWC_VERSION__ 플레이스홀더는 빌드 시 package.json의 version으로 치환된다.
@@ -33,11 +33,11 @@ void (async function twcMain() {
       : 0;
   }
   var target = EXT
-    ? Math.max(1, parseInt(EXT.target, 10) || 1000)
+    ? Math.max(1, parseInt(EXT.target, 10) || 200)
     : parseInt(
         prompt(
           "수집할 트윗 갯수:",
-          resume && saved ? String(Math.max(1000, saved.length + 200)) : "1000",
+          resume && saved ? String(Math.max(200, saved.length + 200)) : "200",
         ),
         10,
       );
@@ -128,7 +128,7 @@ void (async function twcMain() {
   var root = host.attachShadow({ mode: "open" });
   root.innerHTML =
     CSS +
-    '<div class="p"><div class="hd" id="hd"><span id="ico">🐦</span><span class="ttl" id="ttl">트윗 수집기</span><span class="ver">v__TWC_VERSION__</span><button class="ic" id="min" title="접기">─</button><button class="ic hide" id="cls" title="닫기">✕</button></div><div class="bd" id="bd"><div class="num"><b id="cnt">0</b><s id="tgt"></s></div><div class="bar"><i id="bar"></i></div><div class="met"><span id="tm">0:00</span><span id="eta"></span><span id="rate"></span></div><div class="st"><span class="dot" id="dot"></span><span id="msg">시작하는 중</span></div><div class="row"><button class="btn" id="pz" title="수집을 잠시 멈췄다가 다시 시작">일시정지</button><button class="btn dg" id="sp" title="지금까지 수집한 것을 저장하고 종료">중단·저장</button></div><div class="spd"><span class="lab">속도</span><button class="btn stp" id="fa" title="이동 사이 대기를 줄여 빠르게 (과하면 관련성↓·차단 위험)">빠르게</button><span class="val" id="dly"></span><button class="btn stp" id="sl" title="이동 사이 대기를 늘려 천천히 (관련성↑)">느리게</button></div><div class="row"><button class="btn" id="flt" title="수집 대상: 전체 ↔ AI만">필터 OFF</button></div><div class="foot hide" id="foot"><span id="apc"></span><span id="skp"></span><span id="fix"></span><span id="qw"></span></div></div></div>';
+    '<div class="p"><div class="hd" id="hd"><span id="ico"><img src="__TWC_LOGO32__" alt="" style="width:15px;height:15px;vertical-align:-2px"></span><span class="ttl" id="ttl">Xsearch</span><span class="ver">v__TWC_VERSION__</span><button class="ic" id="min" title="접기">─</button><button class="ic hide" id="cls" title="닫기">✕</button></div><div class="bd" id="bd"><div class="num"><b id="cnt">0</b><s id="tgt"></s></div><div class="bar"><i id="bar"></i></div><div class="met"><span id="tm">0:00</span><span id="eta"></span><span id="rate"></span></div><div class="st"><span class="dot" id="dot"></span><span id="msg">시작하는 중</span></div><div class="row"><button class="btn" id="pz" title="수집을 잠시 멈췄다가 다시 시작">일시정지</button><button class="btn dg" id="sp" title="지금까지 수집한 것을 저장하고 종료">중단·저장</button></div><div class="spd"><span class="lab">속도</span><button class="btn stp" id="fa" title="이동 사이 대기를 줄여 빠르게 (과하면 관련성↓·차단 위험)">빠르게</button><span class="val" id="dly"></span><button class="btn stp" id="sl" title="이동 사이 대기를 늘려 천천히 (관련성↑)">느리게</button></div><div class="row"><button class="btn" id="flt" title="수집 대상: 전체 ↔ AI만">필터 OFF</button></div><div class="foot hide" id="foot"><span id="apc"></span><span id="skp"></span><span id="fix"></span><span id="qw"></span></div></div></div>';
   doc.body.appendChild(host);
   function $(id) {
     return root.getElementById(id);
@@ -1045,7 +1045,7 @@ void (async function twcMain() {
     results.length.toLocaleString() +
     "</b><s>개 수집" +
     (skippedCount ? " · " + skippedCount + "건 제외" : "") +
-    '</s></div><div class="row"><button class="btn" id="dc">CSV</button><button class="btn" id="dj">JSON</button></div>';
+    '</s></div><div class="row"><button class="btn" id="dc">CSV</button><button class="btn" id="dj">JSON</button><button class="btn" id="db">브리핑 내보내기</button></div>';
   function download(content, mime, fname) {
     if (EXT) {
       // 확장 모드: bridge.js(content script)가 받아 chrome.downloads로 저장
@@ -1101,8 +1101,8 @@ void (async function twcMain() {
       .join("\n");
     download(head + body, "text/csv;charset=utf-8", "tw_" + dateStr + ".csv");
   };
-  $("dj").onclick = function () {
-    var data = results.map(function (it, i) {
+  function jsonData() {
+    return results.map(function (it, i) {
       return {
         no: i + 1,
         name: it.n,
@@ -1128,10 +1128,57 @@ void (async function twcMain() {
         articlePreview: it.ap || null,
       };
     });
+  }
+  $("dj").onclick = function () {
     download(
-      JSON.stringify(data, null, 2),
+      JSON.stringify(jsonData(), null, 2),
       "application/json;charset=utf-8",
       "tw_" + dateStr + ".json",
     );
   };
+  // 브리핑 내보내기: 수집분을 로컬 '5분 AI 뉴스 빌더'(newsgen)로 보낸다.
+  // 확장 모드는 background가 전송·탭 열기를 담당, 북마클릿 모드는 직접 fetch.
+  function sendBrief() {
+    var fname = "tw_" + dateStr + ".json";
+    var btn = $("db");
+    if (EXT) {
+      window.postMessage(
+        { __twc: "brief", content: JSON.stringify(jsonData()), fname: fname },
+        "*",
+      );
+      if (btn) {
+        btn.textContent = "빌더로 전송됨 — 새 탭 확인";
+        btn.disabled = true;
+      }
+      return;
+    }
+    var base = "http://127.0.0.1:8787";
+    fetch(base + "/api/import", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ fileName: fname, tweets: jsonData() }),
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (j) {
+        if (!j || !j.id) {
+          throw new Error("id 없음");
+        }
+        window.open(base + "/?import=" + j.id, "_blank");
+        if (btn) {
+          btn.textContent = "빌더로 전송됨";
+          btn.disabled = true;
+        }
+      })
+      .catch(function () {
+        alert(
+          "브리핑 빌더 서버(127.0.0.1:8787)에 연결하지 못했습니다.\n프로젝트 폴더에서 npm run news 를 실행한 뒤 다시 시도하세요.",
+        );
+      });
+  }
+  $("db").onclick = sendBrief;
+  if (EXT && EXT.briefAuto) {
+    sendBrief();
+  }
 })();

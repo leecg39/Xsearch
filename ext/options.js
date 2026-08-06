@@ -1,4 +1,4 @@
-// 트윗 수집기 — 옵션 페이지
+// Xsearch — 옵션 페이지
 // 기본 정규식은 빌드 시 collector.js에서 추출해 주입된다 ({{RE_*}} 플레이스홀더).
 
 const DEFAULT_REGEX = {
@@ -8,13 +8,15 @@ const DEFAULT_REGEX = {
 };
 
 const DEFAULTS = {
-  target: 1000,
+  target: 200,
   delay: 2000,
   filterMode: 0,
   autoStart: false,
   reKeep: "",
   reWeak: "",
   reDrop: "",
+  briefAuto: false,
+  builderUrl: "http://127.0.0.1:8787",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -44,6 +46,8 @@ async function load() {
   $("reKeep").value = cfg.reKeep;
   $("reWeak").value = cfg.reWeak;
   $("reDrop").value = cfg.reDrop;
+  $("briefAuto").checked = !!cfg.briefAuto;
+  $("builderUrl").value = cfg.builderUrl;
 }
 
 async function save() {
@@ -59,6 +63,8 @@ async function save() {
     reKeep: $("reKeep").value.trim(),
     reWeak: $("reWeak").value.trim(),
     reDrop: $("reDrop").value.trim(),
+    briefAuto: $("briefAuto").checked,
+    builderUrl: $("builderUrl").value.trim() || DEFAULTS.builderUrl,
   };
   await chrome.storage.local.set(cfg);
   $("msg").textContent = "저장됨";
@@ -73,6 +79,8 @@ function resetDefaults() {
   $("reKeep").value = DEFAULT_REGEX.reKeep;
   $("reWeak").value = DEFAULT_REGEX.reWeak;
   $("reDrop").value = DEFAULT_REGEX.reDrop;
+  $("briefAuto").checked = false;
+  $("builderUrl").value = DEFAULTS.builderUrl;
 }
 
 $("save").addEventListener("click", save);
