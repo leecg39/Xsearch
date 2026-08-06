@@ -1138,6 +1138,8 @@ void (async function twcMain() {
   };
   // AI 브리핑으로 보내기: 수집분을 로컬 'Xsearch 뉴스 빌더'(newsgen)로 보낸다.
   // 확장 모드는 background가 전송·탭 열기를 담당, 북마클릿 모드는 직접 fetch.
+  var BRIEF_FAIL_MSG =
+    "브리핑 빌더 서버(127.0.0.1:8787)에 연결하지 못했습니다.\n프로젝트 폴더에서 npm run news 를 실행한 뒤 다시 시도하세요.";
   function sendBrief() {
     var fname = "tw_" + dateStr + ".json";
     var btn = $("db");
@@ -1146,14 +1148,47 @@ void (async function twcMain() {
         btn.textContent = "전송 중…";
         btn.disabled = true;
       }
+      // 결과가 오지 않으면(서비스 워커 종료 등) 버튼이 영구히 잠기므로
+      // 응답 수신 또는 타임아웃 중 먼저 오는 쪽에서 버튼을 되돌린다.
+      var settled = 0;
+      var timer = setTimeout(function () {
+        finish(0, "응답 시간 초과");
+      }, 15000);
+      function finish(ok, error) {
+        if (settled) {
+          return;
+        }
+        settled = 1;
+        clearTimeout(timer);
+        window.removeEventListener("message", onResult);
+        var b = $("db");
+        if (!b) {
+          return;
+        }
+        if (ok) {
+          b.textContent = "빌더로 전송됨";
+          b.disabled = true;
+          return;
+        }
+        b.textContent = "AI 브리핑으로 보내기";
+        b.disabled = false;
+        alert(BRIEF_FAIL_MSG + (error ? "\n\n(" + error + ")" : ""));
+      }
+      function onResult(ev) {
+        if (ev.source !== window) {
+          return;
+        }
+        var d = ev.data;
+        if (!d || d.__twc !== "brief-result") {
+          return;
+        }
+        finish(d.ok, d.error);
+      }
+      window.addEventListener("message", onResult);
       window.postMessage(
         { __twc: "brief", content: JSON.stringify(jsonData()), fname: fname },
         "*",
       );
-      if (btn) {
-        btn.textContent = "전송 중…";
-        btn.disabled = true;
-      }
       return;
     }
     var base = "http://127.0.0.1:8787";
@@ -1176,9 +1211,7 @@ void (async function twcMain() {
         }
       })
       .catch(function () {
-        alert(
-          "브리핑 빌더 서버(127.0.0.1:8787)에 연결하지 못했습니다.\n프로젝트 폴더에서 npm run news 를 실행한 뒤 다시 시도하세요.",
-        );
+        alert(BRIEF_FAIL_MSG);
       });
   }
   $("db").onclick = sendBrief;

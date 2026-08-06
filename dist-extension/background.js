@@ -25,6 +25,8 @@ function setConfig(cfg) {
 
 async function startCollector(tabId) {
   const cfg = await getConfig();
+  clearBadge(); // 이전 실행에서 남은 오류 배지 정리
+
   await chrome.scripting.executeScript({
     target: { tabId },
     world: "MAIN",
@@ -47,8 +49,37 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 });
 
+// 배지 알림: service worker는 유휴 상태에서 종료되므로 setTimeout 정리가
+// 실행되지 않을 수 있다. 워커가 살아 있는 동안은 타이머로, 종료된 경우에는
+// 다음 수집 시작(startCollector)이나 브라우저 시작 시점에 배지를 지운다.
+function clearBadge() {
+  chrome.action.setBadgeText({ text: "" });
+  chrome.action.setTitle({ title: "Xsearch 시작" });
+}
+
+function flashBadge(text, title, ms) {
+  chrome.action.setBadgeBackgroundColor({ color: "#d3543f" });
+  chrome.action.setBadgeText({ text });
+  if (title) {
+    chrome.action.setTitle({ title });
+  }
+  setTimeout(clearBadge, ms);
+}
+
+chrome.runtime.onStartup.addListener(clearBadge);
+
+// 브리핑 전송 결과를 수집기 UI(MAIN world)로 되돌려 준다. bridge.js가 중계한다.
+function notifyBrief(tabId, ok, error) {
+  if (!tabId) {
+    return;
+  }
+  chrome.tabs
+    .sendMessage(tabId, { __twc: "brief-result", ok, error: error || "" })
+    .catch(() => {}); // 탭이 닫혔거나 content script가 없으면 무시
+}
+
 // 브리핑 내보내기: 수집 JSON을 로컬 '5분 AI 뉴스 빌더'로 보내고 빌더 탭을 연다
-async function exportBrief(content, fname) {
+async function exportBrief(content, fname, tabId) {
   const { builderUrl } = await chrome.storage.local.get({ builderUrl: DEFAULTS.builderUrl });
   const base = (builderUrl || DEFAULTS.builderUrl).replace(/\/+$/, "");
   try {
@@ -60,16 +91,15 @@ async function exportBrief(content, fname) {
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const j = await res.json();
+    if (!j || !j.id) {
+      throw new Error("빌더 응답에 id 없음");
+    }
     await chrome.tabs.create({ url: base + "/?import=" + j.id });
+    notifyBrief(tabId, true);
   } catch (e) {
     console.error("브리핑 내보내기 실패 (빌더 서버가 꺼져 있을 수 있음):", e);
-    chrome.action.setBadgeBackgroundColor({ color: "#d3543f" });
-    chrome.action.setBadgeText({ text: "ERR" });
-    chrome.action.setTitle({ title: "브리핑 내보내기 실패 — npm run news 로 빌더 서버를 실행하세요" });
-    setTimeout(() => {
-      chrome.action.setBadgeText({ text: "" });
-      chrome.action.setTitle({ title: "Xsearch 시작" });
-    }, 10000);
+    flashBadge("ERR", "브리핑 내보내기 실패 — npm run news 로 빌더 서버를 실행하세요", 10000);
+    notifyBrief(tabId, false, e.message);
   }
 }
 
@@ -88,9 +118,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       (downloadId) => {
         if (chrome.runtime.lastError) {
           console.error("다운로드 실패:", chrome.runtime.lastError.message, msg.fname);
-          chrome.action.setBadgeBackgroundColor({ color: "#d3543f" });
-          chrome.action.setBadgeText({ text: "DL!" });
-          setTimeout(() => chrome.action.setBadgeText({ text: "" }), 5000);
+          flashBadge("DL!", "", 5000);
         } else {
           console.log("다운로드 시작:", msg.fname, "id=", downloadId);
         }
@@ -100,7 +128,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true; // sendResponse를 비동기로 호출함을 표시
   }
   if (msg && msg.__twc === "brief" && typeof msg.content === "string") {
-    exportBrief(msg.content, msg.fname);
+    exportBrief(msg.content, msg.fname, sender.tab && sender.tab.id);
     return;
   }
 });
