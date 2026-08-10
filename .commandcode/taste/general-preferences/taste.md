@@ -1,0 +1,12 @@
+# General Preferences
+- Communicates in Korean; all responses should be in Korean. Confidence: 0.95
+- Prefers plan-first development: plan the approach, then implement (often via plan files with to-dos). Confidence: 0.85
+- Uses GitHub for source control (`leecg39`). Confidence: 0.85
+- Commits and pushes frequently — often says "커밋 하고 푸시 해줘" after completing a task. Confidence: 0.9
+- Merges feature branches into `main` before pushing. Confidence: 0.8
+- Uses npm scripts for dev workflows (`npm run dev`, `npm run news`, etc.). Confidence: 0.8
+- Runs local dev servers and expects them to be restarted after changes ("서버 재 실행 해줘"). Confidence: 0.85
+- Prefers fast execution modes: `/fast` for concise output, "스웜모드" for parallel/rapid task completion. Confidence: 0.8
+- Enables multitasking mode frequently ("Start multitasking"). Confidence: 0.75
+- Prefers Ego browser over Chrome for opening pages. Confidence: 0.7
+- Works with Chrome Extensions for X/Twitter scraping and interaction. Confidence: 0.8

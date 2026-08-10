@@ -16,7 +16,9 @@ const DEFAULTS = {
   reWeak: "",
   reDrop: "",
   briefAuto: false,
-  builderUrl: "http://127.0.0.1:8787",
+  builderUrl: "https://news.soverin.cloud",
+  builderUsername: "xsearch",
+  builderPassword: "",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -48,6 +50,8 @@ async function load() {
   $("reDrop").value = cfg.reDrop;
   $("briefAuto").checked = !!cfg.briefAuto;
   $("builderUrl").value = cfg.builderUrl;
+  $("builderUsername").value = cfg.builderUsername;
+  $("builderPassword").value = cfg.builderPassword;
 }
 
 async function save() {
@@ -65,6 +69,8 @@ async function save() {
     reDrop: $("reDrop").value.trim(),
     briefAuto: $("briefAuto").checked,
     builderUrl: $("builderUrl").value.trim() || DEFAULTS.builderUrl,
+    builderUsername: $("builderUsername").value.trim() || DEFAULTS.builderUsername,
+    builderPassword: $("builderPassword").value,
   };
   await chrome.storage.local.set(cfg);
   $("msg").textContent = "저장됨";
@@ -81,6 +87,8 @@ function resetDefaults() {
   $("reDrop").value = DEFAULT_REGEX.reDrop;
   $("briefAuto").checked = false;
   $("builderUrl").value = DEFAULTS.builderUrl;
+  $("builderUsername").value = DEFAULTS.builderUsername;
+  $("builderPassword").value = DEFAULTS.builderPassword;
 }
 
 $("save").addEventListener("click", save);

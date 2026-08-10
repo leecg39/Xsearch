@@ -26,6 +26,7 @@
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",
+    "https://news.soverin.cloud/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],

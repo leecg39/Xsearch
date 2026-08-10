@@ -1,5 +1,5 @@
-// 5분 AI 뉴스 빌더 — 로컬 웹서비스 (의존성 없음, Node 18+)
-// 실행: npm run news  →  http://127.0.0.1:8787
+// 5분 AI 뉴스 빌더 — 로컬·컨테이너 웹서비스 (Node 22+)
+// 로컬 실행: npm run news  →  http://127.0.0.1:8787/builder
 import { createServer } from 'node:http';
 import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
@@ -14,9 +14,10 @@ import * as grokAuth from './lib/grok-auth.mjs';
 import { buildArchive } from './lib/archive.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = path.join(ROOT, 'output');
+const OUT_DIR = path.resolve(process.env.NEWSGEN_OUTPUT_DIR || path.join(ROOT, 'output'));
 const PORT = Number(process.env.PORT || 8787);
-const HOST = '127.0.0.1';
+const HOST = process.env.HOST || '127.0.0.1';
+const APPROVAL_MODE = process.env.NEWSGEN_APPROVAL_MODE === 'client' ? 'client' : 'ego';
 const MAX_BODY = 30 * 1024 * 1024;
 
 const jobs = new Map(); // id → {status, step, detail, startedAt, result, error}
@@ -35,7 +36,7 @@ function corsHeaders() {
   return {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'POST, GET, OPTIONS',
-    'access-control-allow-headers': 'content-type',
+    'access-control-allow-headers': 'authorization, content-type',
   };
 }
 
@@ -209,6 +210,11 @@ const server = createServer(async (req, res) => {
 
   try {
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) {
+      res.writeHead(302, { location: '/output/' });
+      return res.end();
+    }
+
+    if (req.method === 'GET' && (p === '/builder' || p === '/builder/')) {
       return await serveFile(res, path.join(ROOT, 'public', 'index.html'));
     }
 
@@ -236,6 +242,10 @@ const server = createServer(async (req, res) => {
       return await serveFile(res, path.join(OUT_DIR, name));
     }
 
+    if (req.method === 'GET' && p === '/api/health') {
+      return sendJSON(res, 200, { ok: true });
+    }
+
     if (req.method === 'POST' && p === '/api/archive/rebuild') {
       try {
         const r = await buildArchive(OUT_DIR);
@@ -254,12 +264,20 @@ const server = createServer(async (req, res) => {
 
     // ---------- SuperGrok 구독 연결 (OAuth 기기 코드) ----------
     if (req.method === 'GET' && p === '/api/grok/status') {
-      return sendJSON(res, 200, { ...grokAuth.getStatus(), egoOpen: egoOpenState });
+      return sendJSON(res, 200, {
+        ...grokAuth.getStatus(),
+        approvalMode: APPROVAL_MODE,
+        egoOpen: APPROVAL_MODE === 'ego' ? egoOpenState : null,
+      });
     }
     if (req.method === 'POST' && p === '/api/grok/connect') {
       try {
         const info = await grokAuth.startConnect();
-        // 승인 페이지는 Chrome이 아니라 ego 브라우저에서 연다 (기본값)
+        if (APPROVAL_MODE === 'client') {
+          egoOpenState = null;
+          return sendJSON(res, 200, { ...info, browser: 'client' });
+        }
+        // 로컬 환경은 Chrome 대신 ego 브라우저에서 승인 페이지를 연다.
         egoOpenState = 'opening';
         openApprovalInEgo(info.verification_uri_complete || info.verification_uri)
           .then((r) => { egoOpenState = r; });
@@ -289,7 +307,7 @@ const server = createServer(async (req, res) => {
       const id = randomUUID().slice(0, 8);
       imports.set(id, { fileName: String(body.fileName || 'tw_import.json'), tweets, at: Date.now() });
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...corsHeaders() });
-      return res.end(JSON.stringify({ id, url: `http://${HOST}:${PORT}/?import=${id}` }));
+      return res.end(JSON.stringify({ id, url: `/builder?import=${id}` }));
     }
     if (req.method === 'GET' && p.startsWith('/api/import/')) {
       const item = imports.get(p.slice('/api/import/'.length));
@@ -353,7 +371,9 @@ const server = createServer(async (req, res) => {
         apiKey: body.apiKey || '',
         inlineImages: body.inlineImages !== false,
         siteScripts: Boolean(body.siteScripts),
-        baseUrl: typeof body.baseUrl === 'string' && body.baseUrl ? body.baseUrl : 'https://fiv.co.kr/news/',
+        baseUrl: typeof body.baseUrl === 'string' && body.baseUrl
+          ? body.baseUrl
+          : 'https://news.soverin.cloud/output/',
       };
       const bad = validatePayload(payload);
       if (bad) return sendJSON(res, 400, { error: bad });
@@ -381,6 +401,6 @@ server.listen(PORT, HOST, () => {
   console.log(`Xsearch 뉴스 빌더 실행 중 → http://${HOST}:${PORT}`);
   console.log(`출력 폴더: ${OUT_DIR}`);
   buildArchive(OUT_DIR)
-    .then((r) => console.log(`아카이브 갱신: ${r.count}건 → /archive`))
+    .then((r) => console.log(`아카이브 갱신: ${r.count}건 → /output/`))
     .catch((e) => console.error('아카이브 갱신 실패:', e.message));
 });

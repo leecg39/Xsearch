@@ -1,0 +1,11 @@
+.git
+.gitignore
+.commandcode
+node_modules
+dist
+dist-extension
+newsgen/.auth
+newsgen/output
+assets
+*.log
+.DS_Store

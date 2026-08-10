@@ -10,7 +10,9 @@ const DEFAULTS = {
   reWeak: "",
   reDrop: "",
   briefAuto: false, // 수집 완료 시 자동으로 브리핑 내보내기
-  builderUrl: "http://127.0.0.1:8787", // 5분 AI 뉴스 빌더 주소 (npm run news)
+  builderUrl: "https://news.soverin.cloud",
+  builderUsername: "xsearch",
+  builderPassword: "",
 };
 
 async function getConfig() {
@@ -78,27 +80,36 @@ function notifyBrief(tabId, ok, error) {
     .catch(() => {}); // 탭이 닫혔거나 content script가 없으면 무시
 }
 
-// 브리핑 내보내기: 수집 JSON을 로컬 '5분 AI 뉴스 빌더'로 보내고 빌더 탭을 연다
+// 브리핑 내보내기: 수집 JSON을 원격 또는 로컬 뉴스 빌더로 보내고 빌더 탭을 연다.
 async function exportBrief(content, fname, tabId) {
-  const { builderUrl } = await chrome.storage.local.get({ builderUrl: DEFAULTS.builderUrl });
+  const { builderUrl, builderUsername, builderPassword } = await chrome.storage.local.get({
+    builderUrl: DEFAULTS.builderUrl,
+    builderUsername: DEFAULTS.builderUsername,
+    builderPassword: DEFAULTS.builderPassword,
+  });
   const base = (builderUrl || DEFAULTS.builderUrl).replace(/\/+$/, "");
   try {
     const tweets = JSON.parse(content);
+    const headers = { "content-type": "application/json" };
+    if (builderPassword) {
+      headers.authorization = "Basic " + btoa((builderUsername || DEFAULTS.builderUsername) + ":" + builderPassword);
+    }
     const res = await fetch(base + "/api/import", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify({ fileName: fname || "tw_export.json", tweets }),
     });
+    if (res.status === 401) throw new Error("빌더 인증 실패 — 확장 설정의 사용자명과 비밀번호를 확인하세요");
     if (!res.ok) throw new Error("HTTP " + res.status);
     const j = await res.json();
     if (!j || !j.id) {
       throw new Error("빌더 응답에 id 없음");
     }
-    await chrome.tabs.create({ url: base + "/?import=" + j.id });
+    await chrome.tabs.create({ url: base + "/builder?import=" + j.id });
     notifyBrief(tabId, true);
   } catch (e) {
-    console.error("브리핑 내보내기 실패 (빌더 서버가 꺼져 있을 수 있음):", e);
-    flashBadge("ERR", "브리핑 내보내기 실패 — npm run news 로 빌더 서버를 실행하세요", 10000);
+    console.error("브리핑 내보내기 실패:", e);
+    flashBadge("ERR", "브리핑 내보내기 실패 — 확장 설정의 빌더 주소와 인증 정보를 확인하세요", 10000);
     notifyBrief(tabId, false, e.message);
   }
 }

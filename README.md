@@ -15,7 +15,7 @@ x.com 피드를 자동 스크롤하며 게시물을 수집해 CSV/JSON으로 저
 │   ├── bridge.js                 # content script: postMessage 중계 + 자동 시작
 │   └── options.html/js           # 설정 UI (필터 정규식·목표·속도·자동 시작·빌더 주소)
 ├── newsgen/                      # AI 뉴스 빌더 (SuperGrok 구독 인증)
-│   ├── server.mjs                # 로컬 웹서비스 (127.0.0.1:8787)
+│   ├── server.mjs                # 로컬·컨테이너 웹서비스
 │   ├── public/index.html          # 빌더 UI
 │   ├── lib/                      # 전처리·LLM·렌더링·아카이브
 │   └── output/                   # 생성된 브리핑 HTML + index.html 아카이브
@@ -38,7 +38,7 @@ x.com 피드를 자동 스크롤하며 게시물을 수집해 CSV/JSON으로 저
 ```bash
 npm install        # 최초 1회
 npm run build      # dist/ (북마클릿) + dist-extension/ (확장) 생성
-npm run news       # AI 뉴스 빌더 실행 → http://127.0.0.1:8787
+npm run news       # AI 뉴스 빌더 실행 → http://127.0.0.1:8787/builder
 npm run dev        # watch 모드: src/·ext/ 저장 시 자동 재빌드
 ```
 
@@ -54,6 +54,15 @@ npm run dev        # watch 모드: src/·ext/ 저장 시 자동 재빌드
 수집 완료 패널의 **브리핑 내보내기** 버튼을 누르면 수집분이 로컬 'Xsearch 뉴스 빌더'로 전송되고
 빌더 탭이 자동으로 열린다. 빌더는 SuperGrok/X Premium+ 구독 OAuth(기기 코드 로그인)로 그록 모델을
 호출해 '오늘의 AI 브리핑' 형태의 HTML(`newsgen/output/YYYY-MM-DD.html`)을 생성한다.
+
+### 운영 배포
+
+- 공개 아카이브: `https://news.soverin.cloud/output/`
+- 인증된 빌더: `https://news.soverin.cloud/builder`
+- Hostinger Compose 템플릿: `deploy/hostinger/docker-compose.yml`
+
+운영 환경에서는 출력물과 Grok 인증을 컨테이너 외부 볼륨에 보관한다. Basic 인증 비밀번호는
+저장소에 넣지 않고 서버의 `/docker/xsearch-news/.env`에 해시로만 저장한다.
 
 ### 방법 B — 북마클릿 (기존)
 

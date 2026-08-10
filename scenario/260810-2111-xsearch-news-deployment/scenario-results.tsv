@@ -1,0 +1,26 @@
+id	title	dimension	classification	severity	scenario_score	iteration	expand_applied	notes
+S001	공개 아카이브 탐색	happy_path	New	High	3.1	1	Dimension Walk	운영 통과
+S002	인증 경계	permission	New	Critical	3.6	1	Persona Shift	운영 통과
+S003	확장 가져오기에서 빌더 자동 로드	integration	New	High	3.2	1	Combination	브라우저 보류
+S004	원격 Grok 승인 흐름	state_transition	New	High	3.1	1	Temporal Shift	외부 승인 보류
+S005	컨테이너 재생성 후 데이터 지속	recovery	New	High	3.2	1	Temporal Shift	재생성 보류
+S006	깨진 JSON 요청	error	New	Medium	2.7	1	Negation	500 재현
+S007	존재하지 않는 달력 날짜	edge_case	New	High	3.5	1	Boundary	파일 생성 재현 후 격리
+S008	비어 있거나 형식이 다른 트윗 배열	data_variation	New	Medium	2.6	1	Missing data	400 통과
+S009	지원하지 않는 모델 공급자	error	New	Medium	2.7	1	Negation	502 재현
+S010	30MB 본문 경계	edge_case	New	Medium	2.8	1	Boundary	부하 보류
+S011	가져오기 데이터 기반 저장형 XSS	abuse	New	Critical	3.8	1	Combination	정적 확인
+S012	정적 출력 경로 탈출	abuse	New	Critical	3.5	1	Adversarial	운영 404 통과
+S013	공개 report JSON 노출 범위	data_variation	New	Low	1.8	1	Data Variation	현재 비밀 없음
+S014	브라우저 보안 헤더	permission	New	Medium	2.8	1	Defense in Depth	헤더 부재
+S015	비밀번호 오류와 재사용 세션	permission	New	High	3.0	1	Persona Shift	curl 통과
+S016	CORS 사전요청	integration	New	Medium	2.6	1	Combination	OPTIONS 통과
+S017	Basic 인증 무차별 대입	abuse	New	Medium	2.9	1	Amplification	제한 미확인
+S018	같은 날짜의 동시 생성	concurrent	New	High	3.5	1	Combination	잠금 없음
+S019	생성 작업 폭주와 비용 증폭	scale	New	High	3.6	1	Amplification	동시성 제한 없음
+S020	완료 작업 정리	scale	New	Medium	2.7	1	Amplification	상한 우회 가능
+S021	가져오기 10개 상한과 TTL	edge_case	New	Low	2.0	1	Boundary	off-by-one
+S022	재시작 중 작업·가져오기 손실	recovery	New	Medium	2.8	1	Temporal Shift	복구 UX 미흡
+S023	동시 Grok 연결 시작	concurrent	New	Medium	2.8	1	Combination	전역 상태 교체
+S024	OAuth 토큰 만료와 갱신	temporal	New	High	3.2	1	Temporal Shift	구현 양호·실기 보류
+S025	운영 이미지와 저장소 소스 드리프트	integration	New	High	3.8	1	State Comparison	다음 배포 회귀 확정

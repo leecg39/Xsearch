@@ -37,6 +37,11 @@ try {
   } else {
     ng(`manifest 버전 불일치: ${manifest.version} != ${version}`);
   }
+  if (manifest.host_permissions?.includes("https://news.soverin.cloud/*")) {
+    ok("news.soverin.cloud 호스트 권한 포함");
+  } else {
+    ng("news.soverin.cloud 호스트 권한 누락");
+  }
   for (const f of ["background.js", "bridge.js", "options.html", "options.js", "injected.js"]) {
     if (!fs.existsSync(new URL("dist-extension/" + f, root))) ng(`누락: dist-extension/${f}`);
   }
@@ -59,6 +64,17 @@ try {
     ok("options.js 플레이스홀더 치환 완료");
   } else {
     ng("options.js에 미치환 플레이스홀더 남음");
+  }
+  const bgJs = read("dist-extension/background.js");
+  if (bgJs.includes('builderUrl: "https://news.soverin.cloud"')) {
+    ok("원격 빌더 기본 주소 일치");
+  } else {
+    ng("원격 빌더 기본 주소 불일치");
+  }
+  if (bgJs.includes('builderUsername: "xsearch"') && bgJs.includes('builderPassword: ""')) {
+    ok("빌더 인증 설정 포함·비밀번호 미포함");
+  } else {
+    ng("빌더 인증 기본 설정이 안전하지 않음");
   }
   // 치환된 기본 정규식이 실제로 유효한지
   const m = optJs.match(/reKeep: ("(?:[^"\\]|\\.)*")/);

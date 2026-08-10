@@ -1,4 +1,4 @@
-// fiv.co.kr/news 페이지와 동일한 셸(CSS·다크모드·SEO 메타)을 재현하는 템플릿.
+// 오늘의 AI 브리핑 페이지 셸(CSS·다크모드·SEO 메타) 템플릿.
 // CSS는 실제 배포본(2026-08-06.html)에서 추출한 것과 동일 계열을 유지한다.
 
 const BASE_CSS = `:root{--bg:#fafaf7;--fg:#1a1a1a;--text:#1a1a1a;--muted:#555;--text-muted:#555;--accent:#c65545;--accent-soft:#f0e6e2;--border:#e8e6df;--code-bg:#f4f3ec;--quote-bg:#f6f3ec;--surface:#fff}
@@ -153,10 +153,10 @@ function escAttr(s) {
  * @param {string} o.description SEO/OG 요약
  * @param {string} o.date        YYYY-MM-DD
  * @param {string} o.bodyHtml    <main> 내부 HTML
- * @param {string} o.baseUrl     canonical 베이스 (예: https://fiv.co.kr/news/)
+ * @param {string} o.baseUrl     canonical 베이스 (예: https://news.soverin.cloud/output/)
  * @param {boolean} o.siteScripts fiv.co.kr 배포용 외부 스크립트 포함 여부
  */
-export function pageShell({ title, description, date, bodyHtml, baseUrl = 'https://fiv.co.kr/news/', siteScripts = false }) {
+export function pageShell({ title, description, date, bodyHtml, baseUrl = 'https://news.soverin.cloud/output/', siteScripts = false }) {
   const canonical = `${baseUrl.replace(/\/?$/, '/')}${date}.html`;
   const T = escAttr(title);
   const D = escAttr(description);
@@ -177,9 +177,9 @@ ${TOGGLE_BUTTON_HTML}
     headline: title.replace(/ \| (?:오늘의 AI 브리핑|5분 AI 뉴스)$/, ''), description,
     datePublished: date, dateModified: date, inLanguage: 'ko', url: canonical,
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonical }, isAccessibleForFree: true,
-    author: { '@type': 'Organization', name: '오늘의 AI 브리핑', url: 'https://fiv.co.kr' },
-    publisher: { '@type': 'Organization', name: '오늘의 AI 브리핑', logo: { '@type': 'ImageObject', url: 'https://fiv.co.kr/favicon.svg' } },
-    image: ['https://fiv.co.kr/assets/og-default-v2.jpg'],
+    author: { '@type': 'Organization', name: '오늘의 AI 브리핑', url: 'https://news.soverin.cloud/' },
+    publisher: { '@type': 'Organization', name: '오늘의 AI 브리핑', logo: { '@type': 'ImageObject', url: 'https://news.soverin.cloud/icon128.png' } },
+    image: ['https://news.soverin.cloud/icon128.png'],
   });
 
   return `<!DOCTYPE html>
@@ -202,15 +202,13 @@ ${adsense}<meta charset="UTF-8">
 <meta property="og:url" content="${canonical}">
 <meta property="og:title" content="${T}">
 <meta property="og:description" content="${D}">
-<meta property="og:image" content="https://fiv.co.kr/assets/og-default-v2.jpg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+<meta property="og:image" content="https://news.soverin.cloud/icon128.png">
 <meta property="og:image:alt" content="오늘의 AI 브리핑">
 <meta property="article:published_time" content="${date}">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="${T}">
 <meta name="twitter:description" content="${D}">
-<meta name="twitter:image" content="https://fiv.co.kr/assets/og-default-v2.jpg">
+<meta name="twitter:image" content="https://news.soverin.cloud/icon128.png">
 <script type="application/ld+json">${ld}</script>
 </head><body>
 <div class="back-home-bar" style="max-width:820px;margin:0 auto 1.5em;padding:0 24px;">

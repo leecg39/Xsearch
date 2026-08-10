@@ -1138,8 +1138,9 @@ void (async function twcMain() {
   };
   // AI 브리핑으로 보내기: 수집분을 로컬 'Xsearch 뉴스 빌더'(newsgen)로 보낸다.
   // 확장 모드는 background가 전송·탭 열기를 담당, 북마클릿 모드는 직접 fetch.
-  var BRIEF_FAIL_MSG =
-    "브리핑 빌더 서버(127.0.0.1:8787)에 연결하지 못했습니다.\n프로젝트 폴더에서 npm run news 를 실행한 뒤 다시 시도하세요.";
+  var BRIEF_FAIL_MSG = EXT
+    ? "브리핑 빌더에 연결하지 못했습니다.\n확장 설정에서 빌더 주소와 인증 정보를 확인하세요."
+    : "브리핑 빌더 서버(127.0.0.1:8787)에 연결하지 못했습니다.\n프로젝트 폴더에서 npm run news 를 실행한 뒤 다시 시도하세요.";
   function sendBrief() {
     var fname = "tw_" + dateStr + ".json";
     var btn = $("db");

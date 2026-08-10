@@ -14,5 +14,9 @@
   "devDependencies": {
     "esbuild": "^0.28.1",
     "prettier": "^3.9.6"
+  },
+  "dependencies": {
+    "ai": "^7.0.57",
+    "vercel-minimax-ai-provider": "^0.0.2"
   }
 }

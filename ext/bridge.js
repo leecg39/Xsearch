@@ -7,7 +7,7 @@ window.addEventListener("message", (ev) => {
   const d = ev.data;
   if (!d || typeof d.content !== "string") return;
   if (d.__twc === "brief") {
-    // 브리핑 내보내기: background가 로컬 빌더(/api/import)로 전송 후 탭을 연다
+    // 브리핑 내보내기: background가 설정된 빌더(/api/import)로 전송 후 탭을 연다
     chrome.runtime.sendMessage({ __twc: "brief", content: d.content, fname: d.fname });
     return;
   }

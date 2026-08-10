@@ -1,6 +1,6 @@
 // 날짜별 브리핑 아카이브(index.html) 생성 — fiv.co.kr 홈의 신문형 레이아웃을 따른다.
 // output/ 안의 YYYY-MM-DD.html(+.report.json)을 스캔해 정적 페이지 하나로 정리한다.
-// 상대 링크만 쓰므로 output/ 폴더째 fiv.co.kr/news/ 에 올려도 그대로 동작한다.
+// 상대 링크만 쓰므로 output/ 폴더째 별도 경로에 배포해도 그대로 동작한다.
 import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 

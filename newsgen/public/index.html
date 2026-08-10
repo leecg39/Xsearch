@@ -103,11 +103,8 @@ footer{color:var(--muted);font-size:.8em;text-align:center;margin-top:30px}
     <div>
       <h1>Xsearch 뉴스 빌더</h1>
       <div class="sub">Xsearch 수집 JSON → '오늘의 AI 브리핑' 형태의 데일리 브리핑 HTML</div>
-    <div>
-      <h1>5분 AI 뉴스 빌더</h1>
-      <div class="sub">Xsearch 수집 JSON → fiv.co.kr/news 형태의 데일리 브리핑 HTML</div>
     </div>
-    <a class="btn" href="/archive" target="_blank" style="margin-left:auto">🗞 아카이브</a>
+    <a class="btn" href="/output/" target="_blank" style="margin-left:auto">🗞 아카이브</a>
   </div>
 </header>
 
@@ -190,11 +187,11 @@ footer{color:var(--muted);font-size:.8em;text-align:center;margin-top:30px}
   <details>
     <summary>고급 옵션</summary>
     <label class="inline"><input type="checkbox" id="inlineImages" checked> 트윗 이미지를 base64로 내장 (단일 파일, fiv 원본과 동일)</label>
-    <label class="inline"><input type="checkbox" id="siteScripts"> fiv.co.kr 배포용 스크립트 포함 (방문자 트래커·구독 CTA·애드센스 — 로컬 미리보기에서는 꺼두세요)</label>
+    <label class="inline"><input type="checkbox" id="siteScripts"> fiv.co.kr 내보내기용 스크립트 포함 (news.soverin.cloud에서는 꺼두세요)</label>
     <div class="row" style="margin-top:10px;margin-bottom:0">
       <div class="field">
         <label for="baseUrl">canonical 베이스 URL</label>
-        <input type="text" id="baseUrl" value="https://fiv.co.kr/news/">
+        <input type="text" id="baseUrl" value="https://news.soverin.cloud/output/">
       </div>
     </div>
   </details>
@@ -348,7 +345,7 @@ async function loadImport() {
     if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
     const size = new Blob([JSON.stringify(j.tweets)]).size;
     applyData(j.tweets, j.fileName || 'tw_import.json', size, '확장에서 가져옴');
-    history.replaceState(null, '', '/'); // 새로고침 시 만료 오류 방지
+    history.replaceState(null, '', '/builder'); // 새로고침 시 만료 오류 방지
   } catch (e) {
     $('dropMsg').innerHTML = '⚠️ 확장에서 데이터를 가져오지 못했습니다: <b>' + e.message + '</b>';
   }
@@ -413,12 +410,15 @@ async function refreshGrokStatus() {
       $('grokFlow').classList.add('hide');
       stopGrokPoll();
     } else if (s.pending) {
-      setGrokStatus('wait', '승인 대기 중 — ego 브라우저에서 코드를 확인하세요');
+      setGrokStatus('wait', s.approvalMode === 'client'
+        ? '승인 대기 중 — 열린 X 계정 승인 페이지를 확인하세요'
+        : '승인 대기 중 — ego 브라우저에서 코드를 확인하세요');
       if (s.userCode) $('grokCode').textContent = s.userCode;
       if (s.verificationUri) $('grokLink').href = s.verificationUri;
       const ego = s.egoOpen;
-      $('egoLine').innerHTML =
-        ego === 'opening' ? '🦉 <b>ego 브라우저</b>에서 승인 페이지를 여는 중…'
+      $('egoLine').innerHTML = s.approvalMode === 'client'
+        ? '🌐 <b>현재 브라우저</b>에서 X 계정 승인 페이지를 열었습니다. 팝업이 차단됐다면 아래 링크를 누르세요.'
+        : ego === 'opening' ? '🦉 <b>ego 브라우저</b>에서 승인 페이지를 여는 중…'
         : ego && ego.ok ? '🦉 <b>ego 브라우저</b>에 승인 페이지를 열었습니다 (제어권을 넘겼으니 그 창에서 승인하세요)'
         : ego && ego.error ? '⚠️ ego 브라우저 실행 실패: ' + ego.error + ' — 아래 "직접 열기"를 이용하세요'
         : '';
@@ -447,18 +447,31 @@ function stopGrokPoll() {
 }
 $('grokConnect').addEventListener('click', async () => {
   $('grokConnect').disabled = true;
+  const remote = !['127.0.0.1', 'localhost'].includes(location.hostname);
+  const approvalWindow = remote ? window.open('about:blank', '_blank') : null;
   try {
     const res = await fetch('/api/grok/connect', { method: 'POST' });
     const j = await res.json();
     if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
+    const approvalUrl = j.verification_uri_complete || j.verification_uri;
     $('grokCode').textContent = j.user_code;
-    $('grokLink').href = j.verification_uri_complete || j.verification_uri;
-    $('egoLine').innerHTML = '🦉 <b>ego 브라우저</b>에서 승인 페이지를 여는 중…';
+    $('grokLink').href = approvalUrl;
+    if (j.browser === 'client') {
+      if (approvalWindow) approvalWindow.location.href = approvalUrl;
+      else window.open(approvalUrl, '_blank', 'noopener');
+      $('egoLine').innerHTML = '🌐 <b>현재 브라우저</b>에서 X 계정 승인 페이지를 열었습니다. 팝업이 차단됐다면 아래 링크를 누르세요.';
+    } else {
+      if (approvalWindow) approvalWindow.close();
+      $('egoLine').innerHTML = '🦉 <b>ego 브라우저</b>에서 승인 페이지를 여는 중…';
+    }
     $('grokFlow').classList.remove('hide');
     $('grokConnect').classList.add('hide');
-    setGrokStatus('wait', '승인 대기 중 — ego 브라우저에서 코드를 확인하세요');
+    setGrokStatus('wait', j.browser === 'client'
+      ? '승인 대기 중 — 열린 X 계정 승인 페이지를 확인하세요'
+      : '승인 대기 중 — ego 브라우저에서 코드를 확인하세요');
     startGrokPoll();
   } catch (e) {
+    if (approvalWindow) approvalWindow.close();
     setGrokStatus('off', '연결 시작 실패: ' + e.message);
   } finally {
     $('grokConnect').disabled = false;
