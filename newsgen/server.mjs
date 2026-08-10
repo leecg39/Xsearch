@@ -220,7 +220,14 @@ const server = createServer(async (req, res) => {
       return await serveFile(res, path.join(ROOT, '..', 'ext', 'icon128.png'));
     }
 
-    if (req.method === 'GET' && (p === '/archive' || p === '/output' || p === '/output/')) {
+    // 아카이브는 '디렉터리'로 서빙한다. index.html 안의 링크는 상대경로(2026-08-06.html)라
+    // 기준 경로가 /output/ 이어야 풀린다. 슬래시 없는 경로는 리다이렉트로 맞춰준다.
+    if (req.method === 'GET' && (p === '/archive' || p === '/archive/' || p === '/output')) {
+      res.writeHead(302, { location: '/output/' });
+      return res.end();
+    }
+
+    if (req.method === 'GET' && p === '/output/') {
       return await serveFile(res, path.join(OUT_DIR, 'index.html'));
     }
 
