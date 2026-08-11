@@ -51,7 +51,7 @@ services:
       traefik.http.routers.xsearch-news-private.priority: "100"
       traefik.http.routers.xsearch-news-private.tls: "true"
       traefik.http.routers.xsearch-news-private.tls.certresolver: letsencrypt
-      traefik.http.routers.xsearch-news-private.middlewares: xsearch-news-auth
+      traefik.http.routers.xsearch-news-private.middlewares: xsearch-news-rate,xsearch-news-auth
       traefik.http.routers.xsearch-news-private.service: xsearch-news
 
       traefik.http.routers.xsearch-news-preflight.rule: Host(`news.soverin.cloud`) && Method(`OPTIONS`) && PathPrefix(`/api/import`)
@@ -63,3 +63,6 @@ services:
 
       traefik.http.middlewares.xsearch-news-auth.basicauth.users: ${XSEARCH_BASIC_AUTH:?XSEARCH_BASIC_AUTH is required}
       traefik.http.middlewares.xsearch-news-auth.basicauth.removeheader: "true"
+      traefik.http.middlewares.xsearch-news-rate.ratelimit.average: "10"
+      traefik.http.middlewares.xsearch-news-rate.ratelimit.burst: "20"
+      traefik.http.middlewares.xsearch-news-rate.ratelimit.period: 1s
