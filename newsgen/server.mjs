@@ -199,6 +199,10 @@ function validatePayload(p) {
   if (!Array.isArray(p.tweets) || p.tweets.length === 0) return '트윗 배열이 비어 있습니다';
   if (!p.tweets.some((t) => t && typeof t === 'object' && (t.text || t.handle))) return 'Xsearch 수집 형식(text/handle 필드)이 아닙니다';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(p.date || '')) return '날짜 형식이 올바르지 않습니다 (YYYY-MM-DD)';
+  const parsedDate = new Date(`${p.date}T00:00:00.000Z`);
+  if (Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== p.date) {
+    return '실제 달력에 존재하는 날짜를 입력하세요';
+  }
   if (!['ai', 'digest'].includes(p.mode)) return 'mode는 ai 또는 digest여야 합니다';
   if (p.mode === 'ai') {
     if (!['grok', 'anthropic', 'openai', 'gemini'].includes(p.provider)) return '프로바이더가 올바르지 않습니다';
