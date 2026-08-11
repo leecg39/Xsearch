@@ -12,6 +12,7 @@ import { generateReport, listModels, ENV_KEYS, GROK_FALLBACK_MODELS } from './li
 import { renderReport, renderDigest, inlineImages } from './lib/render.mjs';
 import * as grokAuth from './lib/grok-auth.mjs';
 import { buildArchive } from './lib/archive.mjs';
+import { generationAdmission } from './lib/job-control.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(process.env.NEWSGEN_OUTPUT_DIR || path.join(ROOT, 'output'));
@@ -19,6 +20,7 @@ const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '127.0.0.1';
 const APPROVAL_MODE = process.env.NEWSGEN_APPROVAL_MODE === 'client' ? 'client' : 'ego';
 const MAX_BODY = 30 * 1024 * 1024;
+const MAX_ACTIVE_JOBS = Math.max(1, Math.min(4, Number(process.env.NEWSGEN_MAX_ACTIVE_JOBS || 2) || 2));
 
 const jobs = new Map(); // id → {status, step, detail, startedAt, result, error}
 const imports = new Map(); // id → {fileName, tweets, at} — 확장 '브리핑 내보내기' 임시 저장
@@ -286,6 +288,7 @@ const server = createServer(async (req, res) => {
       return sendJSON(res, 200, {
         envKeys: Object.fromEntries(Object.entries(ENV_KEYS).map(([k, v]) => [k, Boolean(process.env[v])])),
         outputDir: OUT_DIR,
+        maxActiveJobs: MAX_ACTIVE_JOBS,
       });
     }
 
@@ -405,8 +408,14 @@ const server = createServer(async (req, res) => {
       const bad = validatePayload(payload);
       if (bad) return sendJSON(res, 400, { error: bad });
 
+      const admission = generationAdmission(jobs, payload.date, MAX_ACTIVE_JOBS);
+      if (admission) {
+        const headers = admission.statusCode === 429 ? { 'retry-after': '5' } : {};
+        return sendJSON(res, admission.statusCode, { error: admission.error }, headers);
+      }
+
       const id = randomUUID();
-      const job = { status: 'running', step: 'queued', detail: '', startedAt: Date.now() };
+      const job = { status: 'running', step: 'queued', detail: '', startedAt: Date.now(), date: payload.date };
       jobs.set(id, job);
       // 오래된 잡 정리 (최근 20개 유지)
       if (jobs.size > 20) {
