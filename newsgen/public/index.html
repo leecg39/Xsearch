@@ -319,6 +319,12 @@ function applyData(data, name, sizeBytes, sourceLabel) {
   updateGoButton();
 }
 
+function setDropMessage(prefix, strongText, suffix) {
+  const strong = document.createElement('b');
+  strong.textContent = String(strongText || '');
+  $('dropMsg').replaceChildren(document.createTextNode(prefix), strong, document.createTextNode(suffix));
+}
+
 function readFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -327,7 +333,7 @@ function readFile(file) {
     } catch (err) {
       state.tweets = null;
       drop.classList.remove('loaded');
-      $('dropMsg').innerHTML = '⚠️ JSON을 읽지 못했습니다: <b>' + err.message + '</b> — 다시 선택하세요';
+      setDropMessage('⚠️ JSON을 읽지 못했습니다: ', err.message, ' — 다시 선택하세요');
       $('fileChips').classList.add('hide');
       updateGoButton();
     }
@@ -347,7 +353,7 @@ async function loadImport() {
     applyData(j.tweets, j.fileName || 'tw_import.json', size, '확장에서 가져옴');
     history.replaceState(null, '', '/builder'); // 새로고침 시 만료 오류 방지
   } catch (e) {
-    $('dropMsg').innerHTML = '⚠️ 확장에서 데이터를 가져오지 못했습니다: <b>' + e.message + '</b>';
+    setDropMessage('⚠️ 확장에서 데이터를 가져오지 못했습니다: ', e.message, '');
   }
 }
 function maxDateKst(data) {
@@ -358,7 +364,7 @@ function maxDateKst(data) {
 }
 function showFileInfo(data, file, sourceLabel) {
   drop.classList.add('loaded');
-  $('dropMsg').innerHTML = '✅ <b>' + file.name + '</b> ' + (sourceLabel || '업로드됨') + ' (클릭해서 교체)';
+  setDropMessage('✅ ', file.name, ' ' + (sourceLabel || '업로드됨') + ' (클릭해서 교체)');
   const langs = {};
   let ai = 0;
   const AI_RE = /\bai\b|llm|gpt|openai|claude|anthropic|gemini|deepmind|agent|모델|에이전트|인공지능|人工知能|人工智能/i;
@@ -367,11 +373,22 @@ function showFileInfo(data, file, sourceLabel) {
     if (AI_RE.test(t.text || '')) ai++;
   }
   const top = Object.entries(langs).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => k + ' ' + v).join(' · ');
-  $('fileChips').innerHTML =
-    '<span class="chip">트윗 <b>' + data.length.toLocaleString() + '</b>개</span>' +
-    '<span class="chip">AI 관련 추정 <b>' + ai.toLocaleString() + '</b>개</span>' +
-    '<span class="chip">언어 <b>' + top + '</b></span>' +
-    '<span class="chip">크기 <b>' + (file.size / 1024 / 1024).toFixed(1) + 'MB</b></span>';
+  const chips = [
+    ['트윗 ', data.length.toLocaleString(), '개'],
+    ['AI 관련 추정 ', ai.toLocaleString(), '개'],
+    ['언어 ', top, ''],
+    ['크기 ', (file.size / 1024 / 1024).toFixed(1) + 'MB', ''],
+  ];
+  const fragment = document.createDocumentFragment();
+  for (const [prefix, value, suffix] of chips) {
+    const chip = document.createElement('span');
+    const strong = document.createElement('b');
+    chip.className = 'chip';
+    strong.textContent = value;
+    chip.append(prefix, strong, suffix);
+    fragment.appendChild(chip);
+  }
+  $('fileChips').replaceChildren(fragment);
   $('fileChips').classList.remove('hide');
 }
 
