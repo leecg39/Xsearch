@@ -130,6 +130,25 @@ ${latest.keywords.length ? `<div class="kw-row">${latest.keywords.map((k) => `<s
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>오늘의 AI 브리핑 — 아카이브</title>
 <meta name="description" content="날짜별 AI 데일리 브리핑 아카이브 — 총 ${entries.length}건">
+<link rel="canonical" href="https://news.soverin.cloud/output/">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="오늘의 AI 브리핑">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:url" content="https://news.soverin.cloud/output/">
+<meta property="og:title" content="오늘의 AI 브리핑 — 아카이브">
+<meta property="og:description" content="매일 아침 중요한 AI·테크 신호만 골라 전하는 데일리 브리핑">
+<meta property="og:image" content="https://news.soverin.cloud/og-image.jpg">
+<meta property="og:image:secure_url" content="https://news.soverin.cloud/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="오늘의 AI 브리핑">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="오늘의 AI 브리핑 — 아카이브">
+<meta name="twitter:description" content="매일 아침 중요한 AI·테크 신호만 골라 전하는 데일리 브리핑">
+<meta name="twitter:image" content="https://news.soverin.cloud/og-image.jpg">
+<meta name="twitter:image:alt" content="오늘의 AI 브리핑">
 <link rel="stylesheet" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
 :root{--bg:#faf9f6;--ink:#141414;--muted:#6d6a63;--red:#b3261e;--red-deep:#7a1512;--border:#e7e4dc;--surface:#fff;--thumb1:#2a0d0d;--thumb2:#511511}

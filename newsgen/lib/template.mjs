@@ -202,13 +202,18 @@ ${adsense}<meta charset="UTF-8">
 <meta property="og:url" content="${canonical}">
 <meta property="og:title" content="${T}">
 <meta property="og:description" content="${D}">
-<meta property="og:image" content="https://news.soverin.cloud/icon128.png">
+<meta property="og:image" content="https://news.soverin.cloud/og-image.jpg">
+<meta property="og:image:secure_url" content="https://news.soverin.cloud/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="오늘의 AI 브리핑">
 <meta property="article:published_time" content="${date}">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${T}">
 <meta name="twitter:description" content="${D}">
-<meta name="twitter:image" content="https://news.soverin.cloud/icon128.png">
+<meta name="twitter:image" content="https://news.soverin.cloud/og-image.jpg">
+<meta name="twitter:image:alt" content="오늘의 AI 브리핑">
 <script type="application/ld+json">${ld}</script>
 </head><body>
 <div class="back-home-bar" style="max-width:820px;margin:0 auto 1.5em;padding:0 24px;">
