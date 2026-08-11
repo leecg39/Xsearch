@@ -237,7 +237,7 @@ document.documentElement.dataset.theme=t}catch(e){}})();
 <header class="site"><div class="wrap">
 <div class="logo">오늘의 AI 브리핑<span class="dot-red">.</span></div>
 <div class="tagline">매일 아침 AI·테크 브리핑 아카이브</div>
-<button class="theme-btn" id="themeBtn" title="테마 전환">◐</button>
+<button class="theme-btn" id="themeBtn" type="button" aria-label="다크 모드로 전환" title="다크 모드로 전환">◐</button>
 </div></header>
 <main class="wrap">
 ${hero}
@@ -275,11 +275,18 @@ ${calendarHtml(entries)}
 <div>매일 아침 AI·테크 타임라인에서 중요한 신호만 골라 전하는 데일리 브리핑 · 이 페이지는 Xsearch 뉴스 빌더가 자동 생성합니다</div>
 </div></footer>
 <script>
-document.getElementById('themeBtn').addEventListener('click',function(){
+var themeBtn=document.getElementById('themeBtn');
+function syncThemeLabel(){
+  var label=document.documentElement.dataset.theme==='dark'?'라이트 모드로 전환':'다크 모드로 전환';
+  themeBtn.setAttribute('aria-label',label);themeBtn.setAttribute('title',label);
+}
+syncThemeLabel();
+themeBtn.addEventListener('click',function(){
   var cur=document.documentElement.dataset.theme==='dark'?'light':'dark';
   document.documentElement.dataset.theme=cur;
   try{var raw=localStorage.getItem('ai_news_prefs');var p=raw?JSON.parse(raw):{};p.theme=cur;
   localStorage.setItem('ai_news_prefs',JSON.stringify(p))}catch(e){}
+  syncThemeLabel();
 });
 var q=document.getElementById('q');
 q.addEventListener('input',function(){
