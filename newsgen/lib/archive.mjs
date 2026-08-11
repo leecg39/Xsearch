@@ -107,7 +107,7 @@ function pageHtml(entries) {
   const lp = latest ? dateParts(latest.date) : null;
 
   const hero = latest ? `
-<section class="hero">
+<section class="hero" data-search="${esc((latest.title + ' ' + latest.sub + ' ' + latest.keywords.join(' ') + ' ' + latest.date).toLowerCase())}">
 <div class="hero-left">
 <div class="section-label">최신 발행 · LATEST ISSUE</div>
 <div class="hero-meta"><span class="badge-new">최신</span> ${latest.date.replaceAll('-', '.')} (${lp.dow}) · ${latest.type === 'ai' ? 'AI 브리핑' : '다이제스트'} · ${latest.minutes}분 읽기</div>
@@ -291,7 +291,7 @@ themeBtn.addEventListener('click',function(){
 var q=document.getElementById('q');
 q.addEventListener('input',function(){
   var v=q.value.trim().toLowerCase();
-  var cards=document.querySelectorAll('.card');
+  var cards=document.querySelectorAll('.hero,.card');
   var shown=0;
   cards.forEach(function(c){
     var hit=!v||(c.dataset.search||'').indexOf(v)>=0;
