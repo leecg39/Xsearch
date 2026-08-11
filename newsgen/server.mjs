@@ -105,14 +105,21 @@ function sendJSON(res, code, obj, headers = {}) {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let size = 0;
+    let tooLarge = false;
     const chunks = [];
     req.on('data', (c) => {
+      if (tooLarge) return;
       size += c.length;
-      if (size > MAX_BODY) { reject(new Error('요청이 너무 큽니다 (30MB 제한)')); req.destroy(); return; }
+      if (size > MAX_BODY) {
+        tooLarge = true;
+        chunks.length = 0;
+        reject(new RequestError(413, '요청이 너무 큽니다 (30MB 제한)'));
+        return;
+      }
       chunks.push(c);
     });
-    req.on('end', () => resolve(Buffer.concat(chunks)));
-    req.on('error', reject);
+    req.on('end', () => { if (!tooLarge) resolve(Buffer.concat(chunks)); });
+    req.on('error', (error) => { if (!tooLarge) reject(error); });
   });
 }
 
