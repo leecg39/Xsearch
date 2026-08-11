@@ -21,6 +21,14 @@ const HOST = process.env.HOST || '127.0.0.1';
 const APPROVAL_MODE = process.env.NEWSGEN_APPROVAL_MODE === 'client' ? 'client' : 'ego';
 const MAX_BODY = 30 * 1024 * 1024;
 const MAX_ACTIVE_JOBS = Math.max(1, Math.min(4, Number(process.env.NEWSGEN_MAX_ACTIVE_JOBS || 2) || 2));
+const SECURITY_HEADERS = {
+  'strict-transport-security': 'max-age=31536000; includeSubDomains',
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'DENY',
+  'referrer-policy': 'strict-origin-when-cross-origin',
+  'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+  'content-security-policy': "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' data: https://cdn.jsdelivr.net; img-src 'self' data: https:; connect-src 'self' https:; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+};
 
 const jobs = new Map(); // id → {status, step, detail, startedAt, result, error}
 const imports = new Map(); // id → {fileName, tweets, at} — 확장 '브리핑 내보내기' 임시 저장
@@ -234,6 +242,7 @@ async function serveFile(res, absPath) {
 }
 
 const server = createServer(async (req, res) => {
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
   const url = new URL(req.url, `http://${req.headers.host}`);
   const p = url.pathname;
 
