@@ -89,9 +89,16 @@ cliLog('EGO_OK handoff=' + JSON.stringify(h))
   });
 }
 
-function sendJSON(res, code, obj) {
+class RequestError extends Error {
+  constructor(statusCode, message) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
+function sendJSON(res, code, obj, headers = {}) {
   const body = JSON.stringify(obj);
-  res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+  res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers });
   res.end(body);
 }
 
@@ -107,6 +114,15 @@ function readBody(req) {
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
+async function readJSON(req) {
+  const text = (await readBody(req)).toString('utf-8') || '{}';
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new RequestError(400, 'JSON 본문 형식이 올바르지 않습니다');
+  }
 }
 
 function setStep(job, step, detail = '') {
@@ -297,7 +313,7 @@ const server = createServer(async (req, res) => {
       return res.end();
     }
     if (req.method === 'POST' && p === '/api/import') {
-      const body = JSON.parse((await readBody(req)).toString('utf-8') || '{}');
+      const body = await readJSON(req);
       const tweets = Array.isArray(body) ? body : body.tweets;
       if (!Array.isArray(tweets) || tweets.length === 0) {
         res.writeHead(400, { 'content-type': 'application/json; charset=utf-8', ...corsHeaders() });
@@ -339,7 +355,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && p === '/api/models') {
-      const body = JSON.parse((await readBody(req)).toString('utf-8') || '{}');
+      const body = await readJSON(req);
       if (body.provider === 'grok') {
         try {
           const token = await resolveGrokToken(body.apiKey);
@@ -361,7 +377,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && p === '/api/generate') {
-      const body = JSON.parse((await readBody(req)).toString('utf-8') || '{}');
+      const body = await readJSON(req);
       const payload = {
         tweets: body.tweets,
         date: body.date,
@@ -393,7 +409,8 @@ const server = createServer(async (req, res) => {
     res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     res.end('Not Found');
   } catch (e) {
-    sendJSON(res, 500, { error: e.message || String(e) });
+    const statusCode = Number.isInteger(e.statusCode) ? e.statusCode : 500;
+    sendJSON(res, statusCode, { error: e.message || String(e) }, p.startsWith('/api/import') ? corsHeaders() : {});
   }
 });
 
