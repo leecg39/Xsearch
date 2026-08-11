@@ -179,7 +179,7 @@ ${TOGGLE_BUTTON_HTML}
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonical }, isAccessibleForFree: true,
     author: { '@type': 'Organization', name: '오늘의 AI 브리핑', url: 'https://news.soverin.cloud/' },
     publisher: { '@type': 'Organization', name: '오늘의 AI 브리핑', logo: { '@type': 'ImageObject', url: 'https://news.soverin.cloud/icon128.png' } },
-    image: ['https://news.soverin.cloud/icon128.png'],
+    image: ['https://news.soverin.cloud/og-image.jpg'],
   });
 
   return `<!DOCTYPE html>
