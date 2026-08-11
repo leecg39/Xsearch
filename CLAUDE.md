@@ -17,3 +17,14 @@ Key routing rules:
 - Architecture review → invoke plan-eng-review
 - Save progress, checkpoint, resume → invoke checkpoint
 - Code quality, health check → invoke health
+
+## Testing
+
+- Run `npm test`; tests live under `test/` and use Node.js 22's built-in `node:test` runner.
+- See `TESTING.md` for layers, commands, and conventions.
+- 100% coverage is the goal so generated code and rapid changes remain safe.
+- Add a corresponding test for every new function.
+- Add a regression test for every bug fix.
+- Trigger every new error-handling branch in a test.
+- Test both paths of every new conditional.
+- Never commit code that makes existing tests fail.

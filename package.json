@@ -8,6 +8,7 @@
     "build": "node build.mjs",
     "news": "node newsgen/server.mjs",
     "dev": "node tools/dev.mjs",
+    "test": "node --test",
     "verify": "node tools/verify.mjs",
     "check": "node --check src/collector.js"
   },
