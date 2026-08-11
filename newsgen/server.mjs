@@ -228,7 +228,16 @@ function validatePayload(p) {
   return null;
 }
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.json': 'application/json; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml' };
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+};
 
 async function serveFile(res, absPath) {
   try {
@@ -262,6 +271,10 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'GET' && p === '/icon128.png') {
       return await serveFile(res, path.join(ROOT, '..', 'ext', 'icon128.png'));
+    }
+
+    if (req.method === 'GET' && p === '/og-image.jpg') {
+      return await serveFile(res, path.join(ROOT, 'public', 'og-image.jpg'));
     }
 
     // 아카이브는 '디렉터리'로 서빙한다. index.html 안의 링크는 상대경로(2026-08-06.html)라
