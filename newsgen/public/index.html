@@ -102,10 +102,7 @@ footer{color:var(--muted);font-size:.8em;text-align:center;margin-top:30px}
     <div class="logo-badge"><img src="/icon32.png" alt="Xsearch" style="width:22px;height:22px;border-radius:5px"></div>
     <div>
       <h1>Xsearch 뉴스 빌더</h1>
-      <div class="sub">Xsearch 수집 JSON → '오늘의 AI 브리핑' 형태의 데일리 브리핑 HTML</div>
-    <div>
-      <h1>5분 AI 뉴스 빌더</h1>
-      <div class="sub">Xsearch 수집 JSON → fiv.co.kr/news 형태의 데일리 브리핑 HTML</div>
+      <div class="sub">수집 JSON → 토픽별 데일리 브리핑 HTML</div>
     </div>
     <a class="btn" href="/archive" target="_blank" style="margin-left:auto">🗞 아카이브</a>
   </div>
@@ -124,6 +121,16 @@ footer{color:var(--muted);font-size:.8em;text-align:center;margin-top:30px}
     <div class="field" style="max-width:220px">
       <label for="dateInput">보고서 날짜 (파일명에서 자동 인식)</label>
       <input type="date" id="dateInput">
+    </div>
+    <div class="field" style="max-width:220px">
+      <label for="topicInput">토픽</label>
+      <select id="topicInput">
+        <option value="ai">AI</option>
+        <option value="dev">개발/테크</option>
+        <option value="finance">경제/금융</option>
+        <option value="startup">스타트업/비즈</option>
+        <option value="custom">자유 입력</option>
+      </select>
     </div>
   </div>
 </section>
@@ -348,6 +355,7 @@ async function loadImport() {
     if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
     const size = new Blob([JSON.stringify(j.tweets)]).size;
     applyData(j.tweets, j.fileName || 'tw_import.json', size, '확장에서 가져옴');
+    if (j.topic) $('topicInput').value = j.topic;
     history.replaceState(null, '', '/'); // 새로고침 시 만료 오류 방지
   } catch (e) {
     $('dropMsg').innerHTML = '⚠️ 확장에서 데이터를 가져오지 못했습니다: <b>' + e.message + '</b>';
@@ -372,7 +380,7 @@ function showFileInfo(data, file, sourceLabel) {
   const top = Object.entries(langs).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => k + ' ' + v).join(' · ');
   $('fileChips').innerHTML =
     '<span class="chip">트윗 <b>' + data.length.toLocaleString() + '</b>개</span>' +
-    '<span class="chip">AI 관련 추정 <b>' + ai.toLocaleString() + '</b>개</span>' +
+    '<span class="chip">관련 추정 <b>' + ai.toLocaleString() + '</b>개</span>' +
     '<span class="chip">언어 <b>' + top + '</b></span>' +
     '<span class="chip">크기 <b>' + (file.size / 1024 / 1024).toFixed(1) + 'MB</b></span>';
   $('fileChips').classList.remove('hide');
@@ -527,6 +535,7 @@ $('go').addEventListener('click', async () => {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         tweets: state.tweets, date, mode,
+        topic: $('topicInput').value,
         provider: $('provider').value, model: $('model').value.trim(), apiKey: $('apiKey').value,
         inlineImages: $('inlineImages').checked, siteScripts: $('siteScripts').checked,
         baseUrl: $('baseUrl').value.trim(),

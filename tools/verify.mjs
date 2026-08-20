@@ -14,7 +14,7 @@ const ng = (msg) => {
   failed = 1;
 };
 
-const { version, src } = prepareCollectorSource(root);
+const { version, src } = await prepareCollectorSource(root);
 
 // 1) 북마클릿: 빌드 산출물이 소스와 일치하는지
 console.log("[북마클릿]");
@@ -50,9 +50,9 @@ try {
   }
   const injected = read("dist-extension/injected.js");
   if (injected === src) {
-    ok("injected.js가 collector.js와 일치");
+    ok("injected.js가 번들 소스와 일치");
   } else {
-    ng("injected.js가 collector.js와 다릅니다");
+    ng("injected.js가 번들 소스와 다릅니다");
   }
   const optJs = read("dist-extension/options.js");
   if (!/\{\{[A-Z_]+\}\}/.test(optJs)) {
@@ -60,10 +60,20 @@ try {
   } else {
     ng("options.js에 미치환 플레이스홀더 남음");
   }
-  // 치환된 기본 정규식이 실제로 유효한지
-  const m = optJs.match(/reKeep: ("(?:[^"\\]|\\.)*")/);
-  if (m && new RegExp(JSON.parse(m[1]), "i")) {
-    ok("기본 정규식 유효");
+  if (optJs.includes('"ai"') && optJs.includes("reKeep")) {
+    ok("토픽 JSON 인라인됨");
+  } else {
+    ng("options.js에 TOPICS가 없습니다");
+  }
+  if (injected.includes('id: "reddit"') || injected.includes("id: 'reddit'")) {
+    ok("injected.js에 reddit 어댑터 포함");
+  } else {
+    ng("injected.js에 reddit 어댑터가 없습니다");
+  }
+  if (!injected.includes("from \"./topics.mjs\"")) {
+    ok("injected.js가 번들됨 (import 잔여 없음)");
+  } else {
+    ng("injected.js에 ESM import가 남아 있습니다");
   }
   // 구문 검사 (node --check)
   for (const f of ["background.js", "bridge.js", "options.js", "injected.js"]) {

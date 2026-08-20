@@ -13,6 +13,7 @@ h1{font-size:1.3rem;margin-bottom:4px}
 label{display:block;font-size:.85rem;font-weight:600;margin-bottom:6px}
 .hint{font-size:.75rem;color:#536471;font-weight:400;margin-left:6px}
 textarea{width:100%;min-height:64px;font-family:ui-monospace,monospace;font-size:.75rem;padding:8px;border:1px solid #cfd9de;border-radius:8px;resize:vertical}
+textarea.ro{background:#f7f9fa;color:#536471}
 input[type=number]{width:100px;padding:6px 8px;border:1px solid #cfd9de;border-radius:8px;font-size:.85rem}
 select{padding:6px 8px;border:1px solid #cfd9de;border-radius:8px;font-size:.85rem}
 .row{display:flex;gap:16px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
@@ -22,12 +23,17 @@ select{padding:6px 8px;border:1px solid #cfd9de;border-radius:8px;font-size:.85r
 button{background:#1d9bf0;color:#fff;border:0;border-radius:20px;padding:10px 24px;font-size:.9rem;font-weight:700;cursor:pointer}
 button.ghost{background:#eff3f4;color:#0f1419}
 #msg{color:#00ba7c;font-size:.85rem;font-weight:600;margin-left:8px}
+.cats{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.cat{background:#f7f9fa;color:#0f1419;border:1px solid #cfd9de;border-radius:12px;padding:10px 14px;font-size:.82rem;font-weight:600;cursor:pointer;text-align:left;min-width:120px}
+.cat small{display:block;font-weight:400;color:#536471;font-size:.72rem;margin-top:2px}
+.cat.on{background:#1d9bf0;border-color:#1d9bf0;color:#fff}
+.cat.on small{color:rgba(255,255,255,.85)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1><img src="icon48.png" alt="Xsearch" style="width:26px;height:26px;vertical-align:-5px;margin-right:6px">Xsearch 설정</h1>
-  <p class="sub">변경 후 저장하면 다음 수집부터 적용됩니다. 정규식은 비워두면 기본값 사용. 브리핑 빌더는 <code>npm run news</code>로 실행하세요.</p>
+  <p class="sub">변경 후 저장하면 다음 수집부터 적용됩니다. 관심사 카테고리를 고르면 KEEP/WEAK/DROP 프리셋이 적용되고, 수집 패널에서도 같은 칩으로 바꿀 수 있습니다. 브리핑 빌더는 <code>npm run news</code>로 실행하세요.</p>
 
   <div class="card">
     <div class="row">
@@ -43,15 +49,16 @@ button.ghost{background:#eff3f4;color:#0f1419}
         <label for="filterMode">필터 기본값</label>
         <select id="filterMode">
           <option value="0">OFF (전체 수집)</option>
-          <option value="1">AI만</option>
+          <option value="1">관심사만</option>
         </select>
       </div>
     </div>
-    <label class="ck"><input type="checkbox" id="autoStart"> x.com 접속 시 자동으로 수집 시작</label>
+    <label class="ck"><input type="checkbox" id="autoStart"> 지원 사이트 접속 시 자동으로 수집 시작</label>
+    <label class="ck" style="margin-top:8px"><input type="checkbox" id="linkedinEnabled"> LinkedIn 수집 허용 <span class="hint">봇 탐지·계정 제한 위험. 느린 딜레이·소량만 권장. 기본 꺼짐</span></label>
   </div>
 
   <div class="card">
-    <label>브리핑 내보내기<span class="hint">수집분을 로컬 'Xsearch 뉴스 빌더'로 보내 '오늘의 AI 브리핑' HTML을 만듭니다 (npm run news)</span></label>
+    <label>브리핑 내보내기<span class="hint">수집분을 로컬 'Xsearch 뉴스 빌더'로 보내 토픽 브리핑 HTML을 만듭니다 (npm run news)</span></label>
     <div class="row" style="margin-top:8px">
       <div style="flex:1;min-width:260px">
         <label for="builderUrl">빌더 주소</label>
@@ -62,17 +69,22 @@ button.ghost{background:#eff3f4;color:#0f1419}
   </div>
 
   <div class="card">
-    <label for="reKeep">KEEP 정규식<span class="hint">이 패턴에 맞으면 무조건 수집</span></label>
-    <textarea id="reKeep" spellcheck="false"></textarea>
-    <div class="err" id="errKeep"></div>
+    <label>관심사 카테고리</label>
+    <input type="hidden" id="topic" value="ai">
+    <div class="cats" id="topicCats"></div>
+    <div id="customFields">
+      <label for="reKeep">KEEP 정규식<span class="hint">이 패턴에 맞으면 무조건 수집</span></label>
+      <textarea id="reKeep" spellcheck="false"></textarea>
+      <div class="err" id="errKeep"></div>
 
-    <label for="reWeak" style="margin-top:12px">WEAK 정규식<span class="hint">KEEP에 안 맞아도, WEAK에 맞고 DROP에 안 맞으면 수집</span></label>
-    <textarea id="reWeak" spellcheck="false"></textarea>
-    <div class="err" id="errWeak"></div>
+      <label for="reWeak" style="margin-top:12px">WEAK 정규식<span class="hint">KEEP에 안 맞아도, WEAK에 맞고 DROP에 안 맞으면 수집</span></label>
+      <textarea id="reWeak" spellcheck="false"></textarea>
+      <div class="err" id="errWeak"></div>
 
-    <label for="reDrop" style="margin-top:12px">DROP 정규식<span class="hint">WEAK에 맞아도 이 패턴이면 제외</span></label>
-    <textarea id="reDrop" spellcheck="false"></textarea>
-    <div class="err" id="errDrop"></div>
+      <label for="reDrop" style="margin-top:12px">DROP 정규식<span class="hint">WEAK에 맞아도 이 패턴이면 제외</span></label>
+      <textarea id="reDrop" spellcheck="false"></textarea>
+      <div class="err" id="errDrop"></div>
+    </div>
   </div>
 
   <div class="btns">

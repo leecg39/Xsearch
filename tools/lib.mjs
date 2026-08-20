@@ -1,16 +1,27 @@
 import fs from "node:fs";
-import { transform } from "esbuild";
+import { fileURLToPath } from "node:url";
+import { transform, build as esbuildBuild } from "esbuild";
 
 /**
- * collector.js 소스에 버전·로고 플레이스홀더를 주입한다.
+ * collector 엔트리(+어댑터)를 브라우저 IIFE로 번들하고 버전·로고를 주입한다.
  * build.mjs와 verify.mjs가 반드시 같은 치환을 쓰도록 한 곳에 모았다.
  */
-export function prepareCollectorSource(root) {
+export async function prepareCollectorSource(root) {
   const version = JSON.parse(fs.readFileSync(new URL("package.json", root), "utf8")).version;
   const logo32 =
     "data:image/png;base64," + fs.readFileSync(new URL("ext/icon32.png", root)).toString("base64");
-  const src = fs
-    .readFileSync(new URL("src/collector.js", root), "utf8")
+  const result = await esbuildBuild({
+    absWorkingDir: fileURLToPath(root),
+    entryPoints: ["src/collector.js"],
+    bundle: true,
+    write: false,
+    format: "iife",
+    platform: "browser",
+    target: ["es2020"],
+    minify: false,
+    legalComments: "none",
+  });
+  const src = result.outputFiles[0].text
     .replaceAll("__TWC_VERSION__", version)
     .replaceAll("__TWC_LOGO32__", logo32);
   return { version, src, logo32 };

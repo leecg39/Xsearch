@@ -12,6 +12,7 @@ import { generateReport, listModels, ENV_KEYS, GROK_FALLBACK_MODELS } from './li
 import { renderReport, renderDigest, inlineImages } from './lib/render.mjs';
 import * as grokAuth from './lib/grok-auth.mjs';
 import { buildArchive } from './lib/archive.mjs';
+import { topicOf } from '../src/topics.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(ROOT, 'output');
@@ -30,12 +31,14 @@ function pruneImports() {
 }
 
 // 확장(background fetch)은 host 권한으로 통과하지만, 북마클릿 모드는
-// x.com 페이지 컨텍스트에서 직접 fetch하므로 /api/import에만 CORS를 연다.
+// https 페이지 컨텍스트에서 127.0.0.1로 fetch하므로 CORS + Private Network Access가 필요하다.
 function corsHeaders() {
   return {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'POST, GET, OPTIONS',
     'access-control-allow-headers': 'content-type',
+    // Chrome: https 공개 사이트 → 127.0.0.1 프리플라이트 허용
+    'access-control-allow-private-network': 'true',
   };
 }
 
@@ -115,10 +118,12 @@ function setStep(job, step, detail = '') {
 
 async function runJob(job, p) {
   try {
+    const topic = p.topic || 'ai';
+    const topicName = topicOf(topic).name;
     setStep(job, 'preprocess', '중복 제거·점수화·라벨 분류');
-    const stats = analyze(p.tweets);
-    const cands = prepareCandidates(p.tweets, { limit: 110 });
-    job.meta = { candidates: cands.length, aiCount: stats.aiCount };
+    const stats = analyze(p.tweets, topic);
+    const cands = prepareCandidates(p.tweets, { limit: 110, topic });
+    job.meta = { candidates: cands.length, aiCount: stats.aiCount, topic };
 
     let rendered;
     let report = null;
@@ -134,14 +139,14 @@ async function runJob(job, p) {
       setStep(job, 'llm', `${p.provider} ${p.model} 호출 준비`);
       report = await generateReport({
         provider: p.provider, model: p.model, apiKey,
-        date: p.date, cands,
+        date: p.date, cands, topicName,
         onStatus: (s) => setStep(job, 'llm', s),
       });
       setStep(job, 'render', '브리핑 HTML 렌더링');
-      rendered = renderReport({ report, cands, baseUrl: p.baseUrl, siteScripts: p.siteScripts });
+      rendered = renderReport({ report, cands, baseUrl: p.baseUrl, siteScripts: p.siteScripts, topicName });
     } else {
       setStep(job, 'render', '다이제스트 HTML 렌더링');
-      rendered = renderDigest({ date: p.date, cands, stats, baseUrl: p.baseUrl, siteScripts: p.siteScripts });
+      rendered = renderDigest({ date: p.date, cands, stats, baseUrl: p.baseUrl, siteScripts: p.siteScripts, topicName });
     }
 
     let html = rendered.html;
@@ -287,14 +292,14 @@ const server = createServer(async (req, res) => {
       }
       pruneImports();
       const id = randomUUID().slice(0, 8);
-      imports.set(id, { fileName: String(body.fileName || 'tw_import.json'), tweets, at: Date.now() });
+      imports.set(id, { fileName: String(body.fileName || 'tw_import.json'), tweets, topic: body.topic || 'ai', at: Date.now() });
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...corsHeaders() });
       return res.end(JSON.stringify({ id, url: `http://${HOST}:${PORT}/?import=${id}` }));
     }
     if (req.method === 'GET' && p.startsWith('/api/import/')) {
       const item = imports.get(p.slice('/api/import/'.length));
       if (!item) return sendJSON(res, 404, { error: '가져올 데이터가 없거나 만료되었습니다 (30분 보관)' });
-      return sendJSON(res, 200, { fileName: item.fileName, tweets: item.tweets });
+      return sendJSON(res, 200, { fileName: item.fileName, tweets: item.tweets, topic: item.topic || 'ai' });
     }
 
     if (req.method === 'GET' && p === '/api/list') {
@@ -354,6 +359,7 @@ const server = createServer(async (req, res) => {
         inlineImages: body.inlineImages !== false,
         siteScripts: Boolean(body.siteScripts),
         baseUrl: typeof body.baseUrl === 'string' && body.baseUrl ? body.baseUrl : 'https://fiv.co.kr/news/',
+        topic: body.topic || 'ai',
       };
       const bad = validatePayload(payload);
       if (bad) return sendJSON(res, 400, { error: bad });

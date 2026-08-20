@@ -1,11 +1,23 @@
 // Xsearch — content script (isolated world)
 // 역할: MAIN world의 postMessage를 background로 중계 + 자동 시작
 
-// MAIN world(injected.js) → background 중계 (다운로드 + 브리핑 내보내기)
+// MAIN world(injected.js) → background 중계 (다운로드 + 브리핑 + 관심사 설정)
 window.addEventListener("message", (ev) => {
   if (ev.source !== window) return;
   const d = ev.data;
-  if (!d || typeof d.content !== "string") return;
+  if (!d || !d.__twc) return;
+
+  if (d.__twc === "prefs") {
+    chrome.runtime.sendMessage({
+      __twc: "prefs",
+      topic: d.topic,
+      filterMode: d.filterMode ? 1 : 0,
+    });
+    return;
+  }
+
+  if (typeof d.content !== "string") return;
+
   if (d.__twc === "brief") {
     // 브리핑 내보내기: background가 로컬 빌더(/api/import)로 전송 후 탭을 연다
     chrome.runtime.sendMessage({ __twc: "brief", content: d.content, fname: d.fname });
