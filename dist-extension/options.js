@@ -132,6 +132,51 @@ function resetDefaults() {
 }
 
 fillTopicSelect();
+// 연결 테스트: 저장 여부와 무관하게 현재 입력값으로 빌더에 프로브 요청을 보낸다.
+// 비밀번호는 화면에 출력하지 않고 길이만 알린다.
+async function testBuilder() {
+  const btn = $("builderTest");
+  const out = $("builderTestMsg");
+  const base = ($("builderUrl").value.trim() || DEFAULTS.builderUrl).replace(/\/+$/, "");
+  const user = $("builderUsername").value.trim() || DEFAULTS.builderUsername;
+  const pass = $("builderPassword").value;
+  btn.disabled = true;
+  out.textContent = "확인 중…";
+  try {
+    const headers = { "content-type": "application/json" };
+    if (pass) {
+      headers.authorization = "Basic " + btoa(user + ":" + pass);
+    }
+    const res = await fetch(base + "/api/import", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        fileName: "probe.json",
+        tweets: [{ id: "probe", text: "connection test" }],
+        topic: "ai",
+      }),
+    });
+    if (res.status === 401) {
+      out.textContent = pass
+        ? "401 인증 실패 — 사용자명(" + user + ")과 비밀번호가 서버 등록값과 다릅니다"
+        : "401 인증 실패 — 비밀번호가 비어 있습니다. 입력 후 저장하세요";
+    } else if (res.ok) {
+      out.textContent = "정상 (" + res.status + ") — 자격증명이 유효합니다";
+    } else {
+      out.textContent = "실패 (HTTP " + res.status + ") — 빌더 주소를 확인하세요";
+    }
+  } catch (e) {
+    // btoa는 비ASCII 비밀번호에서 InvalidCharacterError를 던진다
+    out.textContent =
+      e.name === "InvalidCharacterError"
+        ? "비밀번호에 ASCII가 아닌 문자가 있습니다 — 영문·숫자·기호로 바꿔주세요"
+        : "연결 실패 — " + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$("builderTest").addEventListener("click", testBuilder);
 $("save").addEventListener("click", save);
 $("reset").addEventListener("click", () => {
   resetDefaults();

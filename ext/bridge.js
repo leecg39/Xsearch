@@ -8,6 +8,19 @@ if (window.__twcBridgeLoaded) {
 } else {
   window.__twcBridgeLoaded = true;
 
+  // MV3의 sendMessage는 프로미스를 반환한다. 수신자가 없으면(서비스 워커 비활성,
+  // 확장 재로드 직후 등) reject되는데 잡지 않으면 "Uncaught (in promise)"로 콘솔에 뜬다.
+  function relay(msg) {
+    try {
+      chrome.runtime.sendMessage(msg).catch((e) => {
+        console.warn("background 전달 실패:", e.message);
+      });
+    } catch (e) {
+      // 컨텍스트 무효화 직후에는 호출 자체가 throw한다
+      console.warn("background 전달 불가:", e.message);
+    }
+  }
+
 // MAIN world(injected.js) → background 중계 (다운로드 + 브리핑 내보내기)
 window.addEventListener("message", (ev) => {
   if (ev.source !== window) return;
@@ -17,7 +30,7 @@ window.addEventListener("message", (ev) => {
   // 수집 패널에서 관심사를 바꾸면 옵션 설정과 값을 맞춘다. prefs에는 content가 없으므로
   // 아래 content 가드보다 먼저 처리한다.
   if (d.__twc === "prefs") {
-    chrome.runtime.sendMessage({
+    relay({
       __twc: "prefs",
       topic: d.topic,
       filterMode: d.filterMode ? 1 : 0,
@@ -28,7 +41,7 @@ window.addEventListener("message", (ev) => {
   if (typeof d.content !== "string") return;
   if (d.__twc === "brief") {
     // 브리핑 내보내기: background가 설정된 빌더(/api/import)로 전송 후 탭을 연다
-    chrome.runtime.sendMessage({ __twc: "brief", content: d.content, fname: d.fname, topic: d.topic });
+    relay({ __twc: "brief", content: d.content, fname: d.fname, topic: d.topic });
     return;
   }
   if (d.__twc !== "download") return;
@@ -61,7 +74,7 @@ chrome.storage.local
   .get({ autoStart: false })
   .then((cfg) => {
     if (cfg.autoStart) {
-      chrome.runtime.sendMessage({ __twc: "start" });
+      relay({ __twc: "start" });
     }
   })
   .catch((e) => {
