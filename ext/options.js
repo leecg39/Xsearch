@@ -14,6 +14,7 @@ const DEFAULTS = {
   reDrop: "",
   briefAuto: false,
   builderUrl: "http://127.0.0.1:8787",
+  builderUrlAlt: "http://127.0.0.1:8787",
   linkedinEnabled: false,
 };
 
@@ -100,6 +101,7 @@ async function load() {
   $("autoStart").checked = !!cfg.autoStart;
   $("briefAuto").checked = !!cfg.briefAuto;
   $("builderUrl").value = cfg.builderUrl;
+  $("builderUrlAlt").value = cfg.builderUrlAlt;
   $("linkedinEnabled").checked = !!cfg.linkedinEnabled;
   const topic = migrateTopic(cfg);
   $("topic").value = topic;
@@ -129,6 +131,7 @@ async function save() {
     reDrop: $("reDrop").value.trim(),
     briefAuto: $("briefAuto").checked,
     builderUrl: $("builderUrl").value.trim() || DEFAULTS.builderUrl,
+    builderUrlAlt: $("builderUrlAlt").value.trim() || DEFAULTS.builderUrlAlt,
     linkedinEnabled: $("linkedinEnabled").checked,
   };
   await chrome.storage.local.set(cfg);
@@ -143,10 +146,20 @@ function resetDefaults() {
   $("autoStart").checked = false;
   $("briefAuto").checked = false;
   $("builderUrl").value = DEFAULTS.builderUrl;
+  $("builderUrlAlt").value = DEFAULTS.builderUrlAlt;
   $("linkedinEnabled").checked = false;
   selectTopic("ai");
   $("filterMode").value = "0";
 }
+
+// 활성/대기 빌더 주소 교환 — VPS 주소를 지우지 않고 로컬 테스트로 전환한다
+$("builderSwap").addEventListener("click", async () => {
+  const active = $("builderUrl").value.trim() || DEFAULTS.builderUrl;
+  const alt = $("builderUrlAlt").value.trim() || DEFAULTS.builderUrlAlt;
+  $("builderUrl").value = alt;
+  $("builderUrlAlt").value = active;
+  await save();
+});
 
 $("save").addEventListener("click", save);
 $("reset").addEventListener("click", () => {

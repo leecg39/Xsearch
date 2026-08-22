@@ -61,8 +61,15 @@ button.ghost{background:#eff3f4;color:#0f1419}
     <label>브리핑 내보내기<span class="hint">수집분을 로컬 'Xsearch 뉴스 빌더'로 보내 토픽 브리핑 HTML을 만듭니다 (npm run news)</span></label>
     <div class="row" style="margin-top:8px">
       <div style="flex:1;min-width:260px">
-        <label for="builderUrl">빌더 주소</label>
+        <label for="builderUrl">빌더 주소 (활성)<span class="hint">브리핑 내보내기가 실제로 전송되는 주소</span></label>
         <input type="text" id="builderUrl" style="width:100%;padding:6px 8px;border:1px solid #cfd9de;border-radius:8px;font-size:.85rem" placeholder="http://127.0.0.1:8787">
+      </div>
+      <div style="flex:1;min-width:260px">
+        <label for="builderUrlAlt">빌더 주소 (대기)<span class="hint">전환 버튼으로 활성 주소와 맞바꿉니다</span></label>
+        <input type="text" id="builderUrlAlt" style="width:100%;padding:6px 8px;border:1px solid #cfd9de;border-radius:8px;font-size:.85rem" placeholder="http://127.0.0.1:8787">
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button type="button" id="builderSwap" style="padding:7px 12px;border:1px solid #cfd9de;border-radius:8px;background:#fff;font-size:.85rem;cursor:pointer">↔ 전환</button>
       </div>
     </div>
     <label class="ck" style="margin-top:8px"><input type="checkbox" id="briefAuto"> 수집 완료 시 자동으로 브리핑 내보내기 (완료 패널의 버튼을 누르지 않아도 전송)</label>

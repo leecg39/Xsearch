@@ -1692,7 +1692,39 @@
         "tw_" + dateStr + ".json"
       );
     };
-    var BRIEF_FAIL_MSG = "\uBE0C\uB9AC\uD551 \uBE4C\uB354 \uC11C\uBC84(127.0.0.1:8787)\uC5D0 \uC5F0\uACB0\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.\n\uD504\uB85C\uC81D\uD2B8 \uD3F4\uB354\uC5D0\uC11C npm run news \uB97C \uC2E4\uD589\uD55C \uB4A4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.";
+    var BUILDER_DEFAULT = "http://127.0.0.1:8787";
+    function builderBase() {
+      var u = EXT && EXT.builderUrl || BUILDER_DEFAULT;
+      return String(u).replace(/\/+$/, "");
+    }
+    function isLoopback(u) {
+      return /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/i.test(u);
+    }
+    function briefFailText(base) {
+      return "\uBE0C\uB9AC\uD551 \uBE4C\uB354 \uC11C\uBC84(" + base + ")\uC5D0 \uC5F0\uACB0\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.\n" + (isLoopback(base) ? "\uD504\uB85C\uC81D\uD2B8 \uD3F4\uB354\uC5D0\uC11C npm run news \uB97C \uC2E4\uD589\uD588\uB294\uC9C0 \uD655\uC778\uD558\uC138\uC694." : "\uC6D0\uACA9 \uBE4C\uB354 \uC8FC\uC18C\uC640 \uB124\uD2B8\uC6CC\uD06C \uC0C1\uD0DC\uB97C \uD655\uC778\uD558\uC138\uC694.");
+    }
+    function briefBlockedText(base) {
+      return "\uBE0C\uB77C\uC6B0\uC800\uAC00 \uB85C\uCEEC \uB124\uD2B8\uC6CC\uD06C \uC811\uADFC\uC744 \uCC28\uB2E8\uD588\uC2B5\uB2C8\uB2E4 (" + base + ").\n\uC8FC\uC18C\uCC3D \uC67C\uCABD \uC544\uC774\uCF58 \u2192 \uC0AC\uC774\uD2B8 \uC124\uC815\uC5D0\uC11C '\uB85C\uCEEC \uB124\uD2B8\uC6CC\uD06C \uC561\uC138\uC2A4'\uB97C \uD5C8\uC6A9\uD55C \uB4A4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.";
+    }
+    function briefFailMsg(base, cb) {
+      var perms = window.navigator && window.navigator.permissions;
+      if (!isLoopback(base) || !perms || !perms.query) {
+        cb(briefFailText(base));
+        return;
+      }
+      try {
+        perms.query({ name: "local-network-access" }).then(
+          function(st) {
+            cb(st && st.state !== "granted" ? briefBlockedText(base) : briefFailText(base));
+          },
+          function() {
+            cb(briefFailText(base));
+          }
+        );
+      } catch (e) {
+        cb(briefFailText(base));
+      }
+    }
     function openBuilderFallback(payload, downloadName) {
       try {
         var a = doc.createElement("a");
@@ -1707,7 +1739,7 @@
         }, 1e3);
       } catch (e) {
       }
-      window.open("http://127.0.0.1:8787/", "_blank");
+      window.open(builderBase() + "/", "_blank");
     }
     function sendBrief() {
       var fname = "tw_" + dateStr + ".json";
@@ -1762,7 +1794,7 @@
       fetchBriefDirect(payload, btn, "", fname);
     }
     function fetchBriefDirect(payload, btn, prevErr, downloadName) {
-      var base = "http://127.0.0.1:8787";
+      var base = builderBase();
       if (btn) {
         btn.textContent = "\uC804\uC1A1 \uC911\u2026";
         btn.disabled = true;
@@ -1770,6 +1802,9 @@
       fetch(base + "/api/import", {
         method: "POST",
         headers: { "content-type": "application/json" },
+        // Chrome 142+ 로컬 네트워크 접근(LNA): 루프백 요청임을 명시해야
+        // 혼합 콘텐츠 차단을 피하고 권한 프롬프트가 정상적으로 뜬다.
+        targetAddressSpace: "local",
         body: payload
       }).then(function(r) {
         if (!r.ok) {
@@ -1791,10 +1826,12 @@
           btn.disabled = false;
         }
         var detail = err && err.message || prevErr || "";
-        alert(
-          BRIEF_FAIL_MSG + (detail ? "\n\n(" + detail + ")" : "") + "\n\nJSON\uC744 \uB2E4\uC6B4\uB85C\uB4DC\uD558\uACE0 \uBE4C\uB354 \uD0ED\uC744 \uC5FD\uB2C8\uB2E4. \uD398\uC774\uC9C0\uC5D0\uC11C \uD30C\uC77C\uC744 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694."
-        );
-        openBuilderFallback(payload, downloadName);
+        briefFailMsg(base, function(msg) {
+          alert(
+            msg + (detail ? "\n\n(" + detail + ")" : "") + "\n\nJSON\uC744 \uB2E4\uC6B4\uB85C\uB4DC\uD558\uACE0 \uBE4C\uB354 \uD0ED\uC744 \uC5FD\uB2C8\uB2E4. \uD398\uC774\uC9C0\uC5D0\uC11C \uD30C\uC77C\uC744 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694."
+          );
+          openBuilderFallback(payload, downloadName);
+        });
       });
     }
     $("db").onclick = sendBrief;

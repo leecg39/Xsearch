@@ -658,8 +658,53 @@ void (async function twcMain() {
       "tw_" + dateStr + ".json",
     );
   };
-  var BRIEF_FAIL_MSG =
-    "브리핑 빌더 서버(127.0.0.1:8787)에 연결하지 못했습니다.\n프로젝트 폴더에서 npm run news 를 실행한 뒤 다시 시도하세요.";
+  var BUILDER_DEFAULT = "http://127.0.0.1:8787";
+  // 확장 옵션의 빌더 주소를 따른다. 북마클릿 모드에는 EXT가 없어 기본값을 쓴다.
+  function builderBase() {
+    var u = (EXT && EXT.builderUrl) || BUILDER_DEFAULT;
+    return String(u).replace(/\/+$/, "");
+  }
+  function isLoopback(u) {
+    return /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/i.test(u);
+  }
+  function briefFailText(base) {
+    return (
+      "브리핑 빌더 서버(" +
+      base +
+      ")에 연결하지 못했습니다.\n" +
+      (isLoopback(base)
+        ? "프로젝트 폴더에서 npm run news 를 실행했는지 확인하세요."
+        : "원격 빌더 주소와 네트워크 상태를 확인하세요.")
+    );
+  }
+  function briefBlockedText(base) {
+    return (
+      "브라우저가 로컬 네트워크 접근을 차단했습니다 (" +
+      base +
+      ").\n주소창 왼쪽 아이콘 → 사이트 설정에서 '로컬 네트워크 액세스'를 허용한 뒤 다시 시도하세요."
+    );
+  }
+  // 서버 다운과 브라우저 차단을 구분한다.
+  // granted가 아니면(prompt 포함) 차단으로 본다 — 프롬프트를 닫아도 요청은 실패한다.
+  function briefFailMsg(base, cb) {
+    var perms = window.navigator && window.navigator.permissions;
+    if (!isLoopback(base) || !perms || !perms.query) {
+      cb(briefFailText(base));
+      return;
+    }
+    try {
+      perms.query({ name: "local-network-access" }).then(
+        function (st) {
+          cb(st && st.state !== "granted" ? briefBlockedText(base) : briefFailText(base));
+        },
+        function () {
+          cb(briefFailText(base));
+        },
+      );
+    } catch (e) {
+      cb(briefFailText(base));
+    }
+  }
   function openBuilderFallback(payload, downloadName) {
     try {
       var a = doc.createElement("a");
@@ -673,7 +718,7 @@ void (async function twcMain() {
         URL.revokeObjectURL(burl);
       }, 1000);
     } catch (e) {}
-    window.open("http://127.0.0.1:8787/", "_blank");
+    window.open(builderBase() + "/", "_blank");
   }
   function sendBrief() {
     var fname = "tw_" + dateStr + ".json";
@@ -730,7 +775,7 @@ void (async function twcMain() {
     fetchBriefDirect(payload, btn, "", fname);
   }
   function fetchBriefDirect(payload, btn, prevErr, downloadName) {
-    var base = "http://127.0.0.1:8787";
+    var base = builderBase();
     if (btn) {
       btn.textContent = "전송 중…";
       btn.disabled = true;
@@ -738,6 +783,9 @@ void (async function twcMain() {
     fetch(base + "/api/import", {
       method: "POST",
       headers: { "content-type": "application/json" },
+      // Chrome 142+ 로컬 네트워크 접근(LNA): 루프백 요청임을 명시해야
+      // 혼합 콘텐츠 차단을 피하고 권한 프롬프트가 정상적으로 뜬다.
+      targetAddressSpace: "local",
       body: payload,
     })
       .then(function (r) {
@@ -762,12 +810,14 @@ void (async function twcMain() {
           btn.disabled = false;
         }
         var detail = (err && err.message) || prevErr || "";
-        alert(
-          BRIEF_FAIL_MSG +
-            (detail ? "\n\n(" + detail + ")" : "") +
-            "\n\nJSON을 다운로드하고 빌더 탭을 엽니다. 페이지에서 파일을 선택해 주세요.",
-        );
-        openBuilderFallback(payload, downloadName);
+        briefFailMsg(base, function (msg) {
+          alert(
+            msg +
+              (detail ? "\n\n(" + detail + ")" : "") +
+              "\n\nJSON을 다운로드하고 빌더 탭을 엽니다. 페이지에서 파일을 선택해 주세요.",
+          );
+          openBuilderFallback(payload, downloadName);
+        });
       });
   }
   $("db").onclick = sendBrief;
