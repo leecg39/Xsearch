@@ -17,6 +17,9 @@ const DEFAULTS = {
   enableLinkedIn: false,
 };
 
+// 빌드 시 src/topics.mjs의 키 목록으로 치환된다 (["ai","dev","finance","startup","custom"]).
+const TOPIC_KEYS = ["ai","dev","finance","startup","custom"];
+
 const SOURCE_URL_RE = [
   /^https:\/\/(x|twitter)\.com\//,
   /^https:\/\/([a-z0-9-]+\.)?reddit\.com\//,
@@ -177,6 +180,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg && msg.__twc === "brief" && typeof msg.content === "string") {
     exportBrief(msg.content, msg.fname, sender.tab && sender.tab.id, msg.topic);
+    return;
+  }
+  // 수집 패널에서 고른 관심사를 옵션 설정에 반영한다. 알 수 없는 키는 무시한다.
+  if (msg && msg.__twc === "prefs") {
+    const next = {};
+    if (TOPIC_KEYS.includes(msg.topic)) {
+      next.topic = msg.topic;
+    }
+    if (msg.filterMode != null) {
+      next.filterMode = msg.filterMode ? 1 : 0;
+    }
+    if (Object.keys(next).length > 0) {
+      chrome.storage.local
+        .set(next)
+        .catch((e) => console.warn("관심사 설정 저장 실패:", e.message));
+    }
     return;
   }
 });

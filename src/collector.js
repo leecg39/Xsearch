@@ -2,7 +2,12 @@
 // 페이지에서 실행되어 자동 스크롤(또는 JSON 페이지네이션)하며 게시물을 수집하고 CSV/JSON으로 저장한다.
 // 빌드(`npm run build`) 시 esbuild 번들 + 공백 압축 + javascript: 접두사가 붙어 설치 페이지에 삽입된다.
 // __TWC_VERSION__ 플레이스홀더는 빌드 시 package.json의 version으로 치환된다.
-import { DEFAULT_TOPIC, resolveTopicFilters } from "./topics.mjs";
+import {
+  DEFAULT_TOPIC,
+  INTEREST_CHOICES,
+  TOPIC_KEYS,
+  resolveTopicFilters,
+} from "./topics.mjs";
 import { detectSource, sourceLabel } from "./sources/match.mjs";
 import * as reddit from "./sources/reddit.mjs";
 import * as threads from "./sources/threads.mjs";
@@ -11,6 +16,7 @@ import { csvBody, jsonData as toJsonData, withSource } from "./sources/schema.mj
 
 void (async function twcMain() {
   var KEY = "_twc";
+  var PREFS_KEY = "_twc_prefs";
   // 확장 프로그램 모드: background가 주입한 설정. 없으면 북마클릿 모드(기존 동작).
   var EXT = window.__twcConfig || null;
   var sourceId = detectSource((location && location.hostname) || "");
@@ -88,16 +94,51 @@ void (async function twcMain() {
     incStep = 2000;
   var loadingReq = 0,
     loadWait = 0;
-  var topicFilters = resolveTopicFilters((EXT && EXT.topic) || DEFAULT_TOPIC, {
+  // 패널에서 고른 관심사는 localStorage에 남겨 다음 실행에서도 이어진다.
+  // 확장 모드에서는 background로도 보내 옵션 페이지와 값을 맞춘다.
+  function loadPrefs() {
+    try {
+      var raw = store ? store.getItem(PREFS_KEY) : null;
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function savePrefs(key, on) {
+    try {
+      if (store) {
+        store.setItem(
+          PREFS_KEY,
+          JSON.stringify({ topic: key, filterMode: on ? 1 : 0 }),
+        );
+      }
+    } catch (e) {}
+    try {
+      window.postMessage(
+        { __twc: "prefs", topic: key, filterMode: on ? 1 : 0 },
+        "*",
+      );
+    } catch (e) {}
+  }
+  var prefs = loadPrefs();
+  var customRe = {
     reKeep: EXT && EXT.reKeep,
     reWeak: EXT && EXT.reWeak,
     reDrop: EXT && EXT.reDrop,
-  });
+  };
+  var initialTopic =
+    (TOPIC_KEYS.indexOf(prefs.topic) >= 0 && prefs.topic) ||
+    (EXT && TOPIC_KEYS.indexOf(EXT.topic) >= 0 && EXT.topic) ||
+    DEFAULT_TOPIC;
+  var topicFilters = resolveTopicFilters(initialTopic, customRe);
   var topicKey = topicFilters.key;
   var topicName = topicFilters.name;
   var RE_KEEP = topicFilters.reKeep;
   var RE_WEAK = topicFilters.reWeak;
   var RE_DROP = topicFilters.reDrop;
+  if (prefs.filterMode != null) {
+    filterMode = prefs.filterMode ? 1 : 0;
+  }
   function filterBtnLabel() {
     return filterMode ? "필터: " + topicName : "필터 OFF";
   }
@@ -127,14 +168,33 @@ void (async function twcMain() {
     (isDark
       ? "--bg:#15202b;--fg:#e7e9ea;--sub:#8b98a5;--line:#38444d;--chip:#1e2732"
       : "--bg:#ffffff;--fg:#0f1419;--sub:#536471;--line:#eff3f4;--chip:#f7f9fa") +
-    ";--ac:#1d9bf0}*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}.p{width:268px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.28);overflow:hidden;font-size:13px;line-height:1.45}.hd{display:flex;align-items:center;gap:6px;padding:9px 8px 9px 12px;cursor:move;border-bottom:1px solid var(--line);user-select:none}.ttl{font-weight:700;font-size:12.5px;flex:1}.ver{font-size:10px;color:var(--sub);background:var(--chip);padding:1px 6px;border-radius:20px}.ic{width:22px;height:22px;border:0;background:transparent;color:var(--sub);border-radius:6px;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}.ic:hover{background:var(--chip);color:var(--fg)}.bd{padding:12px}.num{display:flex;align-items:baseline;gap:5px;margin-bottom:8px}.num b{font-size:26px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}.num s{text-decoration:none;color:var(--sub);font-size:12.5px}.bar{height:5px;background:var(--chip);border-radius:20px;overflow:hidden;margin-bottom:9px}.bar i{display:block;height:5px;width:0px;background:var(--ac);border-radius:20px;transition:width .3s}.met{display:flex;gap:10px;font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums;margin-bottom:10px;min-height:16px}.met span{white-space:nowrap}.st{display:flex;align-items:center;gap:7px;font-size:11.5px;padding:6px 9px;border-radius:8px;background:var(--chip);margin-bottom:11px}.dot{width:7px;height:7px;border-radius:20px;background:var(--ac);flex:none}.row{display:flex;gap:6px;margin-bottom:6px}.btn{flex:1;border:1px solid var(--line);background:var(--chip);color:var(--fg);border-radius:8px;padding:7px 4px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap}.btn:hover{border-color:var(--ac)}.btn.on{background:var(--ac);border-color:var(--ac);color:#fff}.btn.dg{color:#f4212e}.spd{display:flex;align-items:center;gap:6px;margin-bottom:6px}.lab{font-size:11px;color:var(--sub);flex:none}.val{flex:1;text-align:center;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--sub)}.stp{flex:none;min-width:50px}.foot{font-size:10.5px;color:var(--sub);padding-top:8px;margin-top:2px;border-top:1px solid var(--line);display:flex;gap:10px;flex-wrap:wrap}.fr{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:11.5px;color:var(--sub)}.fr b{color:var(--fg);font-variant-numeric:tabular-nums}input[type=number]{width:72px;background:var(--chip);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:4px 6px;font-size:11.5px}select{background:var(--chip);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:4px 6px;font-size:11.5px}input[type=checkbox]{accent-color:var(--ac)}.ck{display:flex;align-items:center;gap:6px;cursor:pointer}.hide{display:none}</style>";
+    ";--ac:#1d9bf0}*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}.p{width:268px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.28);overflow:hidden;font-size:13px;line-height:1.45}.hd{display:flex;align-items:center;gap:6px;padding:9px 8px 9px 12px;cursor:move;border-bottom:1px solid var(--line);user-select:none}.ttl{font-weight:700;font-size:12.5px;flex:1}.ver{font-size:10px;color:var(--sub);background:var(--chip);padding:1px 6px;border-radius:20px}.ic{width:22px;height:22px;border:0;background:transparent;color:var(--sub);border-radius:6px;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}.ic:hover{background:var(--chip);color:var(--fg)}.bd{padding:12px}.num{display:flex;align-items:baseline;gap:5px;margin-bottom:8px}.num b{font-size:26px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}.num s{text-decoration:none;color:var(--sub);font-size:12.5px}.bar{height:5px;background:var(--chip);border-radius:20px;overflow:hidden;margin-bottom:9px}.bar i{display:block;height:5px;width:0px;background:var(--ac);border-radius:20px;transition:width .3s}.met{display:flex;gap:10px;font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums;margin-bottom:10px;min-height:16px}.met span{white-space:nowrap}.st{display:flex;align-items:center;gap:7px;font-size:11.5px;padding:6px 9px;border-radius:8px;background:var(--chip);margin-bottom:11px}.dot{width:7px;height:7px;border-radius:20px;background:var(--ac);flex:none}.row{display:flex;gap:6px;margin-bottom:6px}.btn{flex:1;border:1px solid var(--line);background:var(--chip);color:var(--fg);border-radius:8px;padding:7px 4px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap}.btn:hover{border-color:var(--ac)}.btn.on{background:var(--ac);border-color:var(--ac);color:#fff}.btn.dg{color:#f4212e}.spd{display:flex;align-items:center;gap:6px;margin-bottom:6px}.lab{font-size:11px;color:var(--sub);flex:none}.val{flex:1;text-align:center;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--sub)}.stp{flex:none;min-width:50px}.foot{font-size:10.5px;color:var(--sub);padding-top:8px;margin-top:2px;border-top:1px solid var(--line);display:flex;gap:10px;flex-wrap:wrap}.fr{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:11.5px;color:var(--sub)}.fr b{color:var(--fg);font-variant-numeric:tabular-nums}input[type=number]{width:72px;background:var(--chip);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:4px 6px;font-size:11.5px}select{background:var(--chip);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:4px 6px;font-size:11.5px}input[type=checkbox]{accent-color:var(--ac)}.ck{display:flex;align-items:center;gap:6px;cursor:pointer}.hide{display:none}.catlab{font-size:11px;color:var(--sub);margin-bottom:5px}.cats{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}.cat{border:1px solid var(--line);background:var(--chip);color:var(--fg);border-radius:20px;padding:5px 9px;font-size:10.5px;font-weight:600;cursor:pointer;line-height:1.2}.cat:hover{border-color:var(--ac)}.cat.on{background:var(--ac);border-color:var(--ac);color:#fff}.cathint{font-size:10.5px;color:var(--sub);margin-bottom:8px;min-height:14px}</style>";
   var host = doc.createElement("div");
   host.style.cssText =
     "all:initial;position:fixed;top:12px;right:12px;z-index:2147483647";
   var root = host.attachShadow({ mode: "open" });
+  // '전체'는 필터 OFF, 나머지는 해당 관심사만 수집.
+  // custom은 옵션에서 정규식을 넣은 경우에만 노출한다.
+  var catBtns =
+    '<button type="button" class="cat" data-cat="">전체</button>' +
+    INTEREST_CHOICES.map(function (c) {
+      return (
+        '<button type="button" class="cat" data-cat="' +
+        c.key +
+        '" title="' +
+        c.name +
+        '">' +
+        c.short +
+        "</button>"
+      );
+    }).join("");
+  if (topicKey === "custom") {
+    catBtns +=
+      '<button type="button" class="cat" data-cat="custom" title="자유 입력">자유</button>';
+  }
   root.innerHTML =
     CSS +
-    '<div class="p"><div class="hd" id="hd"><span id="ico"><img src="__TWC_LOGO32__" alt="" style="width:15px;height:15px;vertical-align:-2px"></span><span class="ttl" id="ttl">Xsearch</span><span class="ver">v__TWC_VERSION__</span><button class="ic" id="min" title="접기">─</button><button class="ic hide" id="cls" title="닫기">✕</button></div><div class="bd" id="bd"><div class="num"><b id="cnt">0</b><s id="tgt"></s></div><div class="bar"><i id="bar"></i></div><div class="met"><span id="tm">0:00</span><span id="eta"></span><span id="rate"></span></div><div class="st"><span class="dot" id="dot"></span><span id="msg">시작하는 중</span></div><div class="row"><button class="btn" id="pz" title="수집을 잠시 멈췄다가 다시 시작">일시정지</button><button class="btn dg" id="sp" title="지금까지 수집한 것을 저장하고 종료">중단·저장</button></div><div class="spd"><span class="lab">속도</span><button class="btn stp" id="fa" title="이동 사이 대기를 줄여 빠르게 (과하면 관련성↓·차단 위험)">빠르게</button><span class="val" id="dly"></span><button class="btn stp" id="sl" title="이동 사이 대기를 늘려 천천히 (관련성↑)">느리게</button></div><div class="row"><button class="btn" id="flt" title="수집 대상: 전체 ↔ 토픽만">필터 OFF</button></div><div class="foot hide" id="foot"><span id="apc"></span><span id="skp"></span><span id="fix"></span><span id="qw"></span></div></div></div>';
+    '<div class="p"><div class="hd" id="hd"><span id="ico"><img src="__TWC_LOGO32__" alt="" style="width:15px;height:15px;vertical-align:-2px"></span><span class="ttl" id="ttl">Xsearch</span><span class="ver">v__TWC_VERSION__</span><button class="ic" id="min" title="접기">─</button><button class="ic hide" id="cls" title="닫기">✕</button></div><div class="bd" id="bd"><div class="num"><b id="cnt">0</b><s id="tgt"></s></div><div class="bar"><i id="bar"></i></div><div class="met"><span id="tm">0:00</span><span id="eta"></span><span id="rate"></span></div><div class="st"><span class="dot" id="dot"></span><span id="msg">시작하는 중</span></div><div class="row"><button class="btn" id="pz" title="수집을 잠시 멈췄다가 다시 시작">일시정지</button><button class="btn dg" id="sp" title="지금까지 수집한 것을 저장하고 종료">중단·저장</button></div><div class="spd"><span class="lab">속도</span><button class="btn stp" id="fa" title="이동 사이 대기를 줄여 빠르게 (과하면 관련성↓·차단 위험)">빠르게</button><span class="val" id="dly"></span><button class="btn stp" id="sl" title="이동 사이 대기를 늘려 천천히 (관련성↑)">느리게</button></div><div class="row"><button class="btn" id="flt" title="수집 대상: 전체 ↔ 토픽만">필터 OFF</button></div><div class="catlab">관심사 필터</div><div class="cats" id="cats">' + catBtns + '</div><div class="cathint" id="cathint"></div><div class="foot hide" id="foot"><span id="apc"></span><span id="skp"></span><span id="fix"></span><span id="qw"></span></div></div></div>';
   doc.body.appendChild(host);
   function $(id) {
     return root.getElementById(id);
@@ -154,13 +214,48 @@ void (async function twcMain() {
     elQw = $("qw"),
     elApc = $("apc");
   var btnFlt = $("flt");
+  var elCats = $("cats"),
+    elCatHint = $("cathint");
+  // 관심사를 바꾸면 정규식·집계를 갈아끼우고 이미 건너뛴 항목을 다시 판단한다.
+  function applyInterest(key, enable) {
+    if (TOPIC_KEYS.indexOf(key) >= 0) {
+      topicKey = key;
+    }
+    var f = resolveTopicFilters(topicKey, customRe);
+    topicName = f.name;
+    RE_KEEP = f.reKeep;
+    RE_WEAK = f.reWeak;
+    RE_DROP = f.reDrop;
+    filterMode = enable ? 1 : 0;
+    skippedSet.clear();
+    savePrefs(topicKey, filterMode);
+    syncCatUI();
+  }
+  function syncCatUI() {
+    var buttons = elCats.querySelectorAll(".cat");
+    for (var i = 0; i < buttons.length; i++) {
+      var b = buttons[i];
+      var k = b.getAttribute("data-cat") || "";
+      b.classList.toggle("on", filterMode ? k === topicKey : k === "");
+    }
+    elCatHint.textContent = filterMode
+      ? topicName + " 관련만 수집"
+      : "필터 없음 · 전체 수집";
+    btnFlt.textContent = filterBtnLabel();
+    btnFlt.classList.toggle("on", !!filterMode);
+  }
+  elCats.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (!t || !t.classList || !t.classList.contains("cat")) {
+      return;
+    }
+    var key = t.getAttribute("data-cat") || "";
+    applyInterest(key || topicKey, !!key);
+  });
   if (sourceId !== "x") {
     $("ttl").textContent = "Xsearch · " + sourceLabel(sourceId);
   }
-  btnFlt.textContent = filterBtnLabel();
-  if (filterMode) {
-    btnFlt.classList.add("on");
-  }
+  syncCatUI();
   elTgt.textContent = "/ " + target.toLocaleString();
   elDly.textContent = delay + "ms";
   function setStatus(color, msg) {
@@ -854,10 +949,7 @@ void (async function twcMain() {
     elDly.textContent = delay + "ms";
   };
   btnFlt.onclick = function () {
-    filterMode = filterMode ? 0 : 1;
-    btnFlt.textContent = filterBtnLabel();
-    btnFlt.classList.toggle("on", !!filterMode);
-    skippedSet.clear();
+    applyInterest(topicKey, !filterMode);
   };
   var dragX = 0,
     dragY = 0,

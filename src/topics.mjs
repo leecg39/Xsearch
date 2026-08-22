@@ -81,6 +81,20 @@ export const TOPICS = {
 
 export const DEFAULT_TOPIC = 'ai';
 
+/** 알려진 토픽 키 목록 — 수집 패널이 외부 입력을 검증할 때 쓴다. */
+export const TOPIC_KEYS = Object.keys(TOPICS);
+
+/**
+ * 수집 패널의 관심사 칩에 노출할 카테고리.
+ * custom(자유 입력)은 옵션에서 정규식을 넣었을 때만 별도로 붙이므로 제외한다.
+ */
+export const INTEREST_CHOICES = [
+  { key: 'ai', short: 'AI', name: 'AI' },
+  { key: 'dev', short: '개발', name: '개발/테크' },
+  { key: 'finance', short: '금융', name: '경제/금융' },
+  { key: 'startup', short: '비즈', name: '스타트업/비즈' },
+];
+
 const NOTHING = /$^/;
 
 /** 토픽 키를 프리셋으로 해석한다. 알 수 없는 키면 기본(ai)으로 폼백. */

@@ -3,7 +3,12 @@
 // `node build.mjs`로 직접 실행하거나, dev watcher(tools/dev.mjs)에서 build()를 재사용한다.
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
-import { toBookmarklet, prepareCollectorSource, topicsJsonLiteral } from "./tools/lib.mjs";
+import {
+  toBookmarklet,
+  prepareCollectorSource,
+  topicsJsonLiteral,
+  topicKeysJsonLiteral,
+} from "./tools/lib.mjs";
 
 const root = new URL("./", import.meta.url);
 const read = (p) => fs.readFileSync(new URL(p, root), "utf8");
@@ -56,6 +61,7 @@ function buildExtension(srcWithVersion, version) {
 
   // ext/* 복사 + 플레이스홀더 치환
   const topicsLiteral = topicsJsonLiteral();
+  const topicKeysLiteral = topicKeysJsonLiteral();
   for (const f of fs.readdirSync(new URL("ext/", root))) {
     const srcUrl = new URL("ext/" + f, root);
     if (!fs.statSync(srcUrl).isFile()) continue;
@@ -67,6 +73,7 @@ function buildExtension(srcWithVersion, version) {
     let content = read("ext/" + f);
     content = content.replaceAll("__TWC_VERSION__", version);
     content = content.replaceAll("{{TOPICS_JSON}}", () => topicsLiteral);
+    content = content.replaceAll("{{TOPIC_KEYS_JSON}}", () => topicKeysLiteral);
     fs.writeFileSync(new URL(f, outDir), content);
   }
 }

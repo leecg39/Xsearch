@@ -1,6 +1,6 @@
 {
   "name": "xsearch",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "private": true,
   "type": "module",
   "description": "Xsearch — X/Reddit/Threads 게시물 수집 북마클릿 + 토픽별 브리핑 빌더",

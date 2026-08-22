@@ -12,7 +12,20 @@ if (window.__twcBridgeLoaded) {
 window.addEventListener("message", (ev) => {
   if (ev.source !== window) return;
   const d = ev.data;
-  if (!d || typeof d.content !== "string") return;
+  if (!d || !d.__twc) return;
+
+  // 수집 패널에서 관심사를 바꾸면 옵션 설정과 값을 맞춘다. prefs에는 content가 없으므로
+  // 아래 content 가드보다 먼저 처리한다.
+  if (d.__twc === "prefs") {
+    chrome.runtime.sendMessage({
+      __twc: "prefs",
+      topic: d.topic,
+      filterMode: d.filterMode ? 1 : 0,
+    });
+    return;
+  }
+
+  if (typeof d.content !== "string") return;
   if (d.__twc === "brief") {
     // 브리핑 내보내기: background가 설정된 빌더(/api/import)로 전송 후 탭을 연다
     chrome.runtime.sendMessage({ __twc: "brief", content: d.content, fname: d.fname, topic: d.topic });

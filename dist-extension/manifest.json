@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Xsearch",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "Xsearch — X/Reddit/Threads 피드를 수집해 CSV/JSON 저장, 토픽별 브리핑까지 내보냅니다.",
   "icons": {
     "16": "icon16.png",

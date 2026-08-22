@@ -32,6 +32,11 @@ export function topicsJsonLiteral() {
   return JSON.stringify(TOPICS);
 }
 
+/** 서비스 워커가 관심사 키를 검증할 때 쓴다. 프리셋 전체를 싣지 않기 위해 키만 뽑는다. */
+export function topicKeysJsonLiteral() {
+  return JSON.stringify(Object.keys(TOPICS));
+}
+
 /**
  * 수집기 소스(JS)를 북마클릿 한 줄 문자열로 변환한다.
  * - 공백만 압축 (mangle/compress 없음 → 원본과 로직 동일 보장)
