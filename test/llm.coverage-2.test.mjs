@@ -34,6 +34,20 @@ test('chatLLM sends SuperGrok requests to the CLI proxy with identity headers', 
   } finally { s.restore(); }
 });
 
+test('chatLLM sanitizes backslash sequences in Grok prompt text before JSON encode', async () => {
+  const s = stubFetch(() => json({ output_text: 'ok' }));
+  try {
+    await chatLLM({
+      provider: 'grok', model: 'm1', apiKey: 'k1',
+      system: 'sys', user: 'path C:\\Users\\x and \\u12 cut',
+    });
+    const text = s.calls[0].body.input[0].content[0].text;
+    assert.equal(text.includes('\\'), false);
+    assert.match(text, /C:＼Users＼x/);
+    assert.match(text, /＼u12/);
+  } finally { s.restore(); }
+});
+
 test('chatLLM reads Grok output from a structured message array', async () => {
   const s = stubFetch(() => json({
     output: [

@@ -1,11 +1,25 @@
 // Xsearch — 북마클릿 본체 소스
-// x.com 페이지에서 실행되어 자동 스크롤하며 트윗을 수집하고 CSV/JSON으로 저장한다.
-// 빌드(`npm run build`) 시 공백 압축 + javascript: 접두사가 붙어 설치 페이지에 삽입된다.
+// 페이지에서 실행되어 자동 스크롤(또는 JSON 페이지네이션)하며 게시물을 수집하고 CSV/JSON으로 저장한다.
+// 빌드(`npm run build`) 시 esbuild 번들 + 공백 압축 + javascript: 접두사가 붙어 설치 페이지에 삽입된다.
 // __TWC_VERSION__ 플레이스홀더는 빌드 시 package.json의 version으로 치환된다.
+import { DEFAULT_TOPIC, resolveTopicFilters } from "./topics.mjs";
+import { detectSource, sourceLabel } from "./sources/match.mjs";
+import * as reddit from "./sources/reddit.mjs";
+import * as threads from "./sources/threads.mjs";
+import * as linkedin from "./sources/linkedin.mjs";
+import { csvBody, jsonData as toJsonData, withSource } from "./sources/schema.mjs";
+
 void (async function twcMain() {
   var KEY = "_twc";
   // 확장 프로그램 모드: background가 주입한 설정. 없으면 북마클릿 모드(기존 동작).
   var EXT = window.__twcConfig || null;
+  var sourceId = detectSource((location && location.hostname) || "");
+  if (sourceId === "linkedin" && !(EXT && EXT.enableLinkedIn)) {
+    alert(
+      "LinkedIn 수집은 봇 탐지·계정 제한 위험이 있어 기본 꺼져 있습니다.\n확장 옵션에서 LinkedIn 수집을 켠 뒤 다시 시도하세요.",
+    );
+    return;
+  }
   var doc = document;
   var store = null;
   try {
@@ -74,27 +88,19 @@ void (async function twcMain() {
     incStep = 2000;
   var loadingReq = 0,
     loadWait = 0;
-  // 확장 모드에서는 옵션 페이지에서 저장한 정규식 소스로 덮어쓴다.
-  function extRe(src, fallback) {
-    if (EXT && src) {
-      try {
-        return new RegExp(src, "i");
-      } catch (e) {}
-    }
-    return fallback;
+  var topicFilters = resolveTopicFilters((EXT && EXT.topic) || DEFAULT_TOPIC, {
+    reKeep: EXT && EXT.reKeep,
+    reWeak: EXT && EXT.reWeak,
+    reDrop: EXT && EXT.reDrop,
+  });
+  var topicKey = topicFilters.key;
+  var topicName = topicFilters.name;
+  var RE_KEEP = topicFilters.reKeep;
+  var RE_WEAK = topicFilters.reWeak;
+  var RE_DROP = topicFilters.reDrop;
+  function filterBtnLabel() {
+    return filterMode ? "필터: " + topicName : "필터 OFF";
   }
-  var RE_KEEP = extRe(
-    EXT && EXT.reKeep,
-    /\bai\b|인공지능|생성형|거대언어|언어모델|확산모델|초거대|딥러닝|머신러닝|강화학습|파인튜닝|임베딩|멀티모달|신경망|추론모델|프롬프트|claude|gpt|openai|anthropic|gemini|grok|\bllm\b|copilot|cursor|midjourney|perplexity|hugging.?face|transformer|langchain|llamaindex|crew.?ai|autogen|\bllama\b|mistral|qwen|deepseek|\bsora\b|runway|\bsuno\b|\bpika\b|\bdevin\b|windsurf|ollama|\bvllm\b|stable.?diffusion|fine.?tun|\brag\b|neural|deep.?learn|machine.?learn|robot|automat|vibe.?cod|\bmcp\b|semiconductor|quantum|github|docker|kubernetes|\bpython\b|\brust\b|kotlin|nextjs|supabase|vercel|n8n|zapier/i,
-  );
-  var RE_WEAK = extRe(
-    EXT && EXT.reWeak,
-    /\bmeta\b|\bchip\b|\bmodel\b|모델|\btoken\b|토큰|\bagent\b|에이전트|apple|google|microsoft|nvidia|tesla|\bapi\b|cloud|server|database|startup|스타트업|saas|crypto|blockchain|web3|\bgpu\b|\bcpu\b|cod(?:ing|e\b|ex)|pipeline|embed|vector|swift|\breact\b|typescript/i,
-  );
-  var RE_DROP = extRe(
-    EXT && EXT.reDrop,
-    /k.?pop|아이돌|컴백|팬사인|치킨|피자|배달|쿠폰|할인|이벤트|경품|추첨|야구|축구|농구|올림픽|월드컵|선거|대통령|국회|정당|탄핵|드라마|예능|웹툰|화장품|뷰티|패션|다이어트|iran|israel|gaza|ukraine|russia|missile|ceasefire|bomb(?:ing)?|troops|military|\bwar\b|mueller|impeach|\bmaga\b|democrat|republican|\bsenate\b|\bcongress\b|xbox|playstation|nintendo|esport|valorant|minecraft|league.of.legends|evangelion|anime(?!\.js)|manga|cosplay|cortisol|\bworkout\b|anxiety|meditation|lemonade|dividend|hedge.fund/i,
-  );
   function fExcluded(t) {
     if (!filterMode) {
       return false;
@@ -128,7 +134,7 @@ void (async function twcMain() {
   var root = host.attachShadow({ mode: "open" });
   root.innerHTML =
     CSS +
-    '<div class="p"><div class="hd" id="hd"><span id="ico"><img src="__TWC_LOGO32__" alt="" style="width:15px;height:15px;vertical-align:-2px"></span><span class="ttl" id="ttl">Xsearch</span><span class="ver">v__TWC_VERSION__</span><button class="ic" id="min" title="접기">─</button><button class="ic hide" id="cls" title="닫기">✕</button></div><div class="bd" id="bd"><div class="num"><b id="cnt">0</b><s id="tgt"></s></div><div class="bar"><i id="bar"></i></div><div class="met"><span id="tm">0:00</span><span id="eta"></span><span id="rate"></span></div><div class="st"><span class="dot" id="dot"></span><span id="msg">시작하는 중</span></div><div class="row"><button class="btn" id="pz" title="수집을 잠시 멈췄다가 다시 시작">일시정지</button><button class="btn dg" id="sp" title="지금까지 수집한 것을 저장하고 종료">중단·저장</button></div><div class="spd"><span class="lab">속도</span><button class="btn stp" id="fa" title="이동 사이 대기를 줄여 빠르게 (과하면 관련성↓·차단 위험)">빠르게</button><span class="val" id="dly"></span><button class="btn stp" id="sl" title="이동 사이 대기를 늘려 천천히 (관련성↑)">느리게</button></div><div class="row"><button class="btn" id="flt" title="수집 대상: 전체 ↔ AI만">필터 OFF</button></div><div class="foot hide" id="foot"><span id="apc"></span><span id="skp"></span><span id="fix"></span><span id="qw"></span></div></div></div>';
+    '<div class="p"><div class="hd" id="hd"><span id="ico"><img src="__TWC_LOGO32__" alt="" style="width:15px;height:15px;vertical-align:-2px"></span><span class="ttl" id="ttl">Xsearch</span><span class="ver">v__TWC_VERSION__</span><button class="ic" id="min" title="접기">─</button><button class="ic hide" id="cls" title="닫기">✕</button></div><div class="bd" id="bd"><div class="num"><b id="cnt">0</b><s id="tgt"></s></div><div class="bar"><i id="bar"></i></div><div class="met"><span id="tm">0:00</span><span id="eta"></span><span id="rate"></span></div><div class="st"><span class="dot" id="dot"></span><span id="msg">시작하는 중</span></div><div class="row"><button class="btn" id="pz" title="수집을 잠시 멈췄다가 다시 시작">일시정지</button><button class="btn dg" id="sp" title="지금까지 수집한 것을 저장하고 종료">중단·저장</button></div><div class="spd"><span class="lab">속도</span><button class="btn stp" id="fa" title="이동 사이 대기를 줄여 빠르게 (과하면 관련성↓·차단 위험)">빠르게</button><span class="val" id="dly"></span><button class="btn stp" id="sl" title="이동 사이 대기를 늘려 천천히 (관련성↑)">느리게</button></div><div class="row"><button class="btn" id="flt" title="수집 대상: 전체 ↔ 토픽만">필터 OFF</button></div><div class="foot hide" id="foot"><span id="apc"></span><span id="skp"></span><span id="fix"></span><span id="qw"></span></div></div></div>';
   doc.body.appendChild(host);
   function $(id) {
     return root.getElementById(id);
@@ -148,8 +154,11 @@ void (async function twcMain() {
     elQw = $("qw"),
     elApc = $("apc");
   var btnFlt = $("flt");
+  if (sourceId !== "x") {
+    $("ttl").textContent = "Xsearch · " + sourceLabel(sourceId);
+  }
+  btnFlt.textContent = filterBtnLabel();
   if (filterMode) {
-    btnFlt.textContent = "AI만";
     btnFlt.classList.add("on");
   }
   elTgt.textContent = "/ " + target.toLocaleString();
@@ -595,29 +604,36 @@ void (async function twcMain() {
               return a.href;
             });
         }
-        tweets.set(url, {
-          n: nameSpan ? nameSpan.textContent.trim() : "",
-          h: "@" + (userLink ? userLink.href.split("/").pop() : ""),
-          t: text,
-          d: (timeEl && timeEl.getAttribute("datetime")) || snowflakeDate(url),
-          rd: relTime,
-          u: url,
-          r: replies,
-          w: retweets,
-          l: likes,
-          v: views,
-          b: bookmarks,
-          lg: lang,
-          vf: verified ? 1 : 0,
-          ht: hashtags.join(" "),
-          mn: [...new Set(mentions)].join(" "),
-          lk: [...new Set(extLinks)].join(" | "),
-          md: mediaType,
-          mu: mediaUrls.join(" | "),
-          at: artTitle,
-          ap: artPrev,
-          q: quoted,
-        });
+        tweets.set(
+          url,
+          withSource(
+            {
+              n: nameSpan ? nameSpan.textContent.trim() : "",
+              h: "@" + (userLink ? userLink.href.split("/").pop() : ""),
+              t: text,
+              d: (timeEl && timeEl.getAttribute("datetime")) || snowflakeDate(url),
+              rd: relTime,
+              u: url,
+              r: replies,
+              w: retweets,
+              l: likes,
+              v: views,
+              b: bookmarks,
+              lg: lang,
+              vf: verified ? 1 : 0,
+              ht: hashtags.join(" "),
+              mn: [...new Set(mentions)].join(" "),
+              lk: [...new Set(extLinks)].join(" | "),
+              md: mediaType,
+              mu: mediaUrls.join(" | "),
+              at: artTitle,
+              ap: artPrev,
+              q: quoted,
+              s: "x",
+            },
+            "x",
+          ),
+        );
         fresh++;
       } catch (e) {}
     });
@@ -716,50 +732,57 @@ void (async function twcMain() {
         hasImg && hasVid ? "img+vid" : hasImg ? "img" : hasVid ? "vid" : "";
       var vcount =
         tw.views && tw.views.count ? parseInt(tw.views.count, 10) || 0 : 0;
-      tweets.set(url, {
-        n: uname,
-        h: "@" + screen,
-        t: text,
-        d: lg2.created_at
-          ? new Date(lg2.created_at).toISOString()
-          : snowflakeDate(url),
-        rd: "",
-        u: url,
-        r: lg2.reply_count || 0,
-        w: lg2.retweet_count || 0,
-        l: lg2.favorite_count || 0,
-        v: vcount,
-        b: lg2.bookmark_count || 0,
-        lg: lg2.lang || "",
-        vf:
-          ur &&
-          (ur.is_blue_verified ||
-            ul.verified ||
-            (ur.verification && ur.verification.verified))
-            ? 1
-            : 0,
-        ht: (ents.hashtags || [])
-          .map(function (x) {
-            return "#" + x.text;
-          })
-          .join(" "),
-        mn: (ents.user_mentions || [])
-          .map(function (x) {
-            return "@" + x.screen_name;
-          })
-          .join(" "),
-        lk: (ents.urls || [])
-          .map(function (x) {
-            return x.expanded_url;
-          })
-          .filter(Boolean)
-          .join(" | "),
-        md: md,
-        mu: mediaUrls.join(" | "),
-        at: "",
-        ap: "",
-        q: quoted,
-      });
+      tweets.set(
+        url,
+        withSource(
+          {
+            n: uname,
+            h: "@" + screen,
+            t: text,
+            d: lg2.created_at
+              ? new Date(lg2.created_at).toISOString()
+              : snowflakeDate(url),
+            rd: "",
+            u: url,
+            r: lg2.reply_count || 0,
+            w: lg2.retweet_count || 0,
+            l: lg2.favorite_count || 0,
+            v: vcount,
+            b: lg2.bookmark_count || 0,
+            lg: lg2.lang || "",
+            vf:
+              ur &&
+              (ur.is_blue_verified ||
+                ul.verified ||
+                (ur.verification && ur.verification.verified))
+                ? 1
+                : 0,
+            ht: (ents.hashtags || [])
+              .map(function (x) {
+                return "#" + x.text;
+              })
+              .join(" "),
+            mn: (ents.user_mentions || [])
+              .map(function (x) {
+                return "@" + x.screen_name;
+              })
+              .join(" "),
+            lk: (ents.urls || [])
+              .map(function (x) {
+                return x.expanded_url;
+              })
+              .filter(Boolean)
+              .join(" | "),
+            md: md,
+            mu: mediaUrls.join(" | "),
+            at: "",
+            ap: "",
+            q: quoted,
+            s: "x",
+          },
+          "x",
+        ),
+      );
       apiFresh++;
       apiCount++;
     } catch (e) {}
@@ -809,18 +832,6 @@ void (async function twcMain() {
       netHooked = 0;
     }
   }
-  function csvEsc(s) {
-    if (s == null) {
-      return "";
-    }
-    s = String(s)
-      .replace(/[\n\r]+/g, " ")
-      .trim();
-    if (/^[=+\-@]/.test(s)) {
-      s = "'" + s;
-    }
-    return /[,"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  }
   $("min").onclick = function () {
     var bd = $("bd");
     bd.classList.toggle("hide");
@@ -844,7 +855,7 @@ void (async function twcMain() {
   };
   btnFlt.onclick = function () {
     filterMode = filterMode ? 0 : 1;
-    btnFlt.textContent = filterMode ? "AI만" : "필터 OFF";
+    btnFlt.textContent = filterBtnLabel();
     btnFlt.classList.toggle("on", !!filterMode);
     skippedSet.clear();
   };
@@ -889,41 +900,192 @@ void (async function twcMain() {
   $("cls").onclick = function () {
     cleanup();
   };
-  try {
-    var GQL =
-      /[/]graphql[/].*(Home|Search|List|UserTweets|Bookmarks|Community|TweetDetail)/i;
-    xhrProto.open = function (m, u) {
-      try {
-        this.__twcU = u;
-      } catch (e) {}
-      return origOpen.apply(this, arguments);
+  function harvestCtx() {
+    return {
+      has: function (u) {
+        return tweets.has(u) || skippedSet.has(u);
+      },
+      skip: function (u) {
+        skippedCount++;
+        skippedSet.add(u);
+      },
+      excluded: fExcluded,
+      add: function (item) {
+        tweets.set(item.u, withSource(item, sourceId));
+      },
     };
-    xhrProto.send = function () {
+  }
+  async function waitPaused() {
+    while (paused && !stopFlag) {
+      setStatus(GRAY, "일시정지");
+      await sleep(300);
+      pausedMs += 300;
+    }
+  }
+  async function collectReddit() {
+    var loc = reddit.parseLocation(location.href);
+    var after = null;
+    var attempt429 = 0;
+    var redditDelay = Math.max(delay, 6000);
+    while (!stopFlag && tweets.size < target) {
+      await waitPaused();
+      if (stopFlag) break;
+      var url = reddit.listingUrl(loc, after);
+      setStatus(BLUE, "Reddit JSON 수집 중");
+      var res;
       try {
-        var self = this;
-        if (self.__twcU && GQL.test(self.__twcU)) {
-          loadingReq++;
-          self.addEventListener("loadend", function () {
-            if (loadingReq > 0) {
-              loadingReq--;
-            }
-          });
-          self.addEventListener("load", function () {
-            try {
-              var t = self.responseText;
-              if (t && t.charAt(0) === "{") {
-                harvest(JSON.parse(t));
-              }
-            } catch (e) {}
-          });
+        res = await fetch(url, {
+          credentials: "include",
+          headers: { accept: "application/json" },
+        });
+      } catch (e) {
+        setStatus(RED, "네트워크 오류");
+        await sleep(redditDelay);
+        continue;
+      }
+      if (res.status === 429) {
+        var wait = reddit.backoffMs(attempt429, redditDelay);
+        attempt429++;
+        if (attempt429 > reddit.MAX_429) {
+          setStatus(RED, "Reddit 429 한도 초과");
+          break;
         }
-      } catch (e) {}
-      return origSend.apply(this, arguments);
-    };
-    netHooked = 1;
-  } catch (e) {}
+        setStatus("#ff7a00", "Reddit 429 — " + wait + "ms 대기");
+        await sleep(wait);
+        continue;
+      }
+      attempt429 = 0;
+      if (!res.ok) {
+        setStatus(RED, "Reddit HTTP " + res.status);
+        break;
+      }
+      var json = await res.json();
+      var children = reddit.childrenOf(json);
+      var fresh = 0;
+      for (var ri = 0; ri < children.length; ri++) {
+        var item = reddit.mapChild(children[ri]);
+        if (!item || !item.u) continue;
+        if (tweets.has(item.u) || skippedSet.has(item.u)) continue;
+        if (fExcluded(item.t)) {
+          skippedCount++;
+          skippedSet.add(item.u);
+          fresh++;
+          continue;
+        }
+        tweets.set(item.u, item);
+        fresh++;
+      }
+      after = reddit.afterOf(json);
+      updateProgress();
+      updateFoot();
+      if (tweets.size - lastSaved >= 50) {
+        saveCheckpoint();
+        lastSaved = tweets.size;
+      }
+      if (tweets.size >= target) break;
+      if (!after || children.length === 0) {
+        setStatus("#00ba7c", "피드 끝");
+        break;
+      }
+      if (fresh === 0) {
+        stall++;
+        if (stall >= 4) break;
+      } else {
+        stall = 0;
+      }
+      await sleep(redditDelay + 200 * Math.random());
+    }
+  }
+  async function collectDomFeed(adapter) {
+    var ctx = harvestCtx();
+    for (var iter = 0; iter < 3000 && !stopFlag; iter++) {
+      await waitPaused();
+      if (stopFlag) break;
+      var harvested = adapter.harvestDocument(doc, ctx);
+      var fresh = harvested.fresh || 0;
+      artSeen = harvested.artSeen || 0;
+      parsedOk = harvested.parsedOk || 0;
+      if (artSeen >= 3 && parsedOk === 0) {
+        zeroStreak++;
+        if (zeroStreak >= 3 && !selWarned) {
+          selWarned = 1;
+          setStatus(RED, "선택자 확인 필요 (" + sourceLabel(sourceId) + " DOM 변경?)");
+        }
+      } else if (parsedOk > 0) {
+        zeroStreak = 0;
+      }
+      updateProgress();
+      updateFoot();
+      if (tweets.size >= target) break;
+      if (fresh > 0) {
+        stall = 0;
+        cooldowns = 0;
+        setStatus(BLUE, "수집 중");
+        if (tweets.size - lastSaved >= 50) {
+          saveCheckpoint();
+          lastSaved = tweets.size;
+        }
+        goDown();
+        await sleep(delay + 200 * Math.random());
+      } else {
+        stall++;
+        setStatus(GRAY, "정체 " + stall + "/16");
+        goDown();
+        await sleep(delay + Math.min(300 * stall, 2000));
+        if (stall >= 16) {
+          cooldowns++;
+          if (cooldowns >= 3) break;
+          setStatus("#ff7a00", "로딩 대기 — 쿨다운 " + cooldowns + "/3 (30초)");
+          await sleep(30000);
+          stall = 0;
+        }
+      }
+    }
+  }
+  if (sourceId === "x") {
+    try {
+      var GQL =
+        /[/]graphql[/].*(Home|Search|List|UserTweets|Bookmarks|Community|TweetDetail)/i;
+      xhrProto.open = function (m, u) {
+        try {
+          this.__twcU = u;
+        } catch (e) {}
+        return origOpen.apply(this, arguments);
+      };
+      xhrProto.send = function () {
+        try {
+          var self = this;
+          if (self.__twcU && GQL.test(self.__twcU)) {
+            loadingReq++;
+            self.addEventListener("loadend", function () {
+              if (loadingReq > 0) {
+                loadingReq--;
+              }
+            });
+            self.addEventListener("load", function () {
+              try {
+                var t = self.responseText;
+                if (t && t.charAt(0) === "{") {
+                  harvest(JSON.parse(t));
+                }
+              } catch (e) {}
+            });
+          }
+        } catch (e) {}
+        return origSend.apply(this, arguments);
+      };
+      netHooked = 1;
+    } catch (e) {}
+  }
   setStatus(BLUE, "수집 중");
   try {
+    if (sourceId === "reddit") {
+      await collectReddit();
+    } else if (sourceId === "threads") {
+      await collectDomFeed(threads);
+    } else if (sourceId === "linkedin") {
+      await collectDomFeed(linkedin);
+    } else
     for (var iter = 0; iter < 3000 && !stopFlag; iter++) {
       if (paused) {
         setStatus(GRAY, "일시정지");
@@ -1022,8 +1184,10 @@ void (async function twcMain() {
     return;
   }
   unhookNet();
-  await clickShowMore();
-  parseTweets();
+  if (sourceId === "x") {
+    await clickShowMore();
+    parseTweets();
+  }
   saveCheckpoint();
   clearInterval(timer);
   updateProgress();
@@ -1040,12 +1204,15 @@ void (async function twcMain() {
   $("ico").textContent = "✅";
   $("ttl").textContent = "수집 완료";
   $("cls").classList.remove("hide");
+  var briefBtnLabel = topicName + " 브리핑으로 보내기";
   $("bd").innerHTML =
     '<div class="num"><b>' +
     results.length.toLocaleString() +
     "</b><s>개 수집" +
     (skippedCount ? " · " + skippedCount + "건 제외" : "") +
-    '</s></div><div class="row"><button class="btn" id="dc">CSV</button><button class="btn" id="dj">JSON</button><button class="btn" id="db">AI 브리핑으로 보내기</button></div>';
+    '</s></div><div class="row"><button class="btn" id="dc">CSV</button><button class="btn" id="dj">JSON</button><button class="btn" id="db">' +
+    briefBtnLabel +
+    "</button></div>";
   function download(content, mime, fname) {
     if (EXT) {
       // 확장 모드: bridge.js(content script)가 받아 chrome.downloads로 저장
@@ -1067,67 +1234,10 @@ void (async function twcMain() {
     } catch (e) {}
   }
   $("dc").onclick = function () {
-    var head =
-      "\uFEFF번호,이름,핸들,인증,텍스트,언어,시간,상대시간,URL,댓글,RT,좋아요,북마크,조회,해시태그,멘션,인라인링크,인용작성자,인용내용,인용URL,미디어,미디어URL,기사제목,기사미리보기\n";
-    var body = results
-      .map(function (it, i) {
-        return [
-          i + 1,
-          csvEsc(it.n),
-          csvEsc(it.h),
-          it.vf,
-          csvEsc(it.t),
-          csvEsc(it.lg),
-          csvEsc(it.d),
-          csvEsc(it.rd),
-          csvEsc(it.u),
-          it.r,
-          it.w,
-          it.l,
-          it.b,
-          it.v,
-          csvEsc(it.ht || ""),
-          csvEsc(it.mn || ""),
-          csvEsc(it.lk || ""),
-          csvEsc(it.q ? it.q.user : ""),
-          csvEsc(it.q ? it.q.text : ""),
-          csvEsc(it.q ? it.q.url : ""),
-          it.md,
-          csvEsc(it.mu || ""),
-          csvEsc(it.at || ""),
-          csvEsc(it.ap || ""),
-        ].join(",");
-      })
-      .join("\n");
-    download(head + body, "text/csv;charset=utf-8", "tw_" + dateStr + ".csv");
+    download(csvBody(results), "text/csv;charset=utf-8", "tw_" + dateStr + ".csv");
   };
   function jsonData() {
-    return results.map(function (it, i) {
-      return {
-        no: i + 1,
-        name: it.n,
-        handle: it.h,
-        verified: !!it.vf,
-        text: it.t,
-        lang: it.lg || null,
-        time: it.d,
-        relTime: it.rd,
-        url: it.u,
-        replies: it.r,
-        retweets: it.w,
-        likes: it.l,
-        bookmarks: it.b,
-        views: it.v,
-        hashtags: it.ht ? it.ht.split(" ") : [],
-        mentions: it.mn ? it.mn.split(" ") : [],
-        inlineLinks: it.lk ? it.lk.split(" | ") : [],
-        quoted: it.q || null,
-        media: it.md || null,
-        mediaUrls: it.mu ? it.mu.split(" | ") : [],
-        articleTitle: it.at || null,
-        articlePreview: it.ap || null,
-      };
-    });
+    return toJsonData(results);
   }
   $("dj").onclick = function () {
     download(
@@ -1171,7 +1281,7 @@ void (async function twcMain() {
           b.disabled = true;
           return;
         }
-        b.textContent = "AI 브리핑으로 보내기";
+        b.textContent = briefBtnLabel;
         b.disabled = false;
         alert(BRIEF_FAIL_MSG + (error ? "\n\n(" + error + ")" : ""));
       }
@@ -1187,7 +1297,7 @@ void (async function twcMain() {
       }
       window.addEventListener("message", onResult);
       window.postMessage(
-        { __twc: "brief", content: JSON.stringify(jsonData()), fname: fname },
+        { __twc: "brief", content: JSON.stringify(jsonData()), fname: fname, topic: topicKey },
         "*",
       );
       return;
@@ -1196,7 +1306,7 @@ void (async function twcMain() {
     fetch(base + "/api/import", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ fileName: fname, tweets: jsonData() }),
+      body: JSON.stringify({ fileName: fname, tweets: jsonData(), topic: topicKey }),
     })
       .then(function (r) {
         return r.json();

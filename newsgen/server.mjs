@@ -13,6 +13,7 @@ import { renderReport, renderDigest, inlineImages } from './lib/render.mjs';
 import * as grokAuth from './lib/grok-auth.mjs';
 import { buildArchive } from './lib/archive.mjs';
 import { generationAdmission } from './lib/job-control.mjs';
+import { DEFAULT_TOPIC, normalizeTopicKey, topicEntries, topicKeywordsMap } from '../src/topics.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(process.env.NEWSGEN_OUTPUT_DIR || path.join(ROOT, 'output'));
@@ -150,8 +151,8 @@ function setStep(job, step, detail = '') {
 async function runJob(job, p) {
   try {
     setStep(job, 'preprocess', '중복 제거·점수화·라벨 분류');
-    const stats = analyze(p.tweets);
-    const cands = prepareCandidates(p.tweets, { limit: 110 });
+    const stats = analyze(p.tweets, { topic: p.topic });
+    const cands = prepareCandidates(p.tweets, { limit: 110, topic: p.topic });
     job.meta = { candidates: cands.length, aiCount: stats.aiCount };
 
     let rendered;
@@ -168,14 +169,14 @@ async function runJob(job, p) {
       setStep(job, 'llm', `${p.provider} ${p.model} 호출 준비`);
       report = await generateReport({
         provider: p.provider, model: p.model, apiKey,
-        date: p.date, cands,
+        date: p.date, cands, topic: p.topic,
         onStatus: (s) => setStep(job, 'llm', s),
       });
       setStep(job, 'render', '브리핑 HTML 렌더링');
-      rendered = renderReport({ report, cands, baseUrl: p.baseUrl, siteScripts: p.siteScripts });
+      rendered = renderReport({ report, cands, baseUrl: p.baseUrl, siteScripts: p.siteScripts, topic: p.topic });
     } else {
       setStep(job, 'render', '다이제스트 HTML 렌더링');
-      rendered = renderDigest({ date: p.date, cands, stats, baseUrl: p.baseUrl, siteScripts: p.siteScripts });
+      rendered = renderDigest({ date: p.date, cands, stats, baseUrl: p.baseUrl, siteScripts: p.siteScripts, topic: p.topic });
     }
 
     let html = rendered.html;
@@ -311,6 +312,9 @@ const server = createServer(async (req, res) => {
         envKeys: Object.fromEntries(Object.entries(ENV_KEYS).map(([k, v]) => [k, Boolean(process.env[v])])),
         outputDir: OUT_DIR,
         maxActiveJobs: MAX_ACTIVE_JOBS,
+        topics: topicEntries(),
+        topicKeywords: topicKeywordsMap(),
+        defaultTopic: DEFAULT_TOPIC,
       });
     }
 
@@ -357,14 +361,19 @@ const server = createServer(async (req, res) => {
       }
       pruneImports();
       const id = randomUUID().slice(0, 8);
-      imports.set(id, { fileName: String(body.fileName || 'tw_import.json'), tweets, at: Date.now() });
+      imports.set(id, {
+        fileName: String(body.fileName || 'tw_import.json'),
+        tweets,
+        topic: normalizeTopicKey(body.topic),
+        at: Date.now(),
+      });
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...corsHeaders() });
       return res.end(JSON.stringify({ id, url: `/builder?import=${id}` }));
     }
     if (req.method === 'GET' && p.startsWith('/api/import/')) {
       const item = imports.get(p.slice('/api/import/'.length));
       if (!item) return sendJSON(res, 404, { error: '가져올 데이터가 없거나 만료되었습니다 (30분 보관)' });
-      return sendJSON(res, 200, { fileName: item.fileName, tweets: item.tweets });
+      return sendJSON(res, 200, { fileName: item.fileName, tweets: item.tweets, topic: item.topic || DEFAULT_TOPIC });
     }
 
     if (req.method === 'GET' && p === '/api/list') {
@@ -423,6 +432,7 @@ const server = createServer(async (req, res) => {
         apiKey: body.apiKey || '',
         inlineImages: body.inlineImages !== false,
         siteScripts: Boolean(body.siteScripts),
+        topic: normalizeTopicKey(body.topic),
         baseUrl: typeof body.baseUrl === 'string' && body.baseUrl
           ? body.baseUrl
           : 'https://news.soverin.cloud/output/',

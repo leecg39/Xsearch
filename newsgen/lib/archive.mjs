@@ -3,6 +3,46 @@
 // 상대 링크만 쓰므로 output/ 폴더째 별도 경로에 배포해도 그대로 동작한다.
 import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { briefingBrand, DEFAULT_TOPIC, normalizeTopicKey, topicEntries } from '../../src/topics.mjs';
+
+const MIXED_BRAND = {
+  key: 'mixed',
+  name: '브리핑',
+  newsletter: '오늘의 브리핑',
+  newsLabel: '브리핑',
+};
+
+/** HTML <title>에서 토픽 키를 읽는다. 못 찾으면 AI. */
+export function topicFromTitle(title) {
+  const s = String(title || '');
+  if (/5분 AI 뉴스/.test(s)) return DEFAULT_TOPIC;
+  const m = s.match(/오늘의\s+(.+?)\s+브리핑/);
+  if (!m) return DEFAULT_TOPIC;
+  const hit = topicEntries().find((t) => t.name === m[1]);
+  return hit ? hit.id : DEFAULT_TOPIC;
+}
+
+/** report.json의 topic을 우선하고, 없으면 페이지 제목에서 추론. */
+export function topicFromReport(report, metaTitle) {
+  if (report && report.topic != null && String(report.topic).trim() !== '') {
+    return normalizeTopicKey(report.topic);
+  }
+  return topicFromTitle(metaTitle);
+}
+
+/** 아카이브 사이트 크롬(헤더·OG). 토픽이 섞이면 범용 브랜드. */
+export function siteBrand(entries) {
+  const keys = [...new Set((entries || []).map((e) => e.topic).filter(Boolean))];
+  if (keys.length === 1) return briefingBrand(keys[0]);
+  if (keys.length > 1) return MIXED_BRAND;
+  return briefingBrand(DEFAULT_TOPIC);
+}
+
+function typeLabel(e) {
+  if (e.type === 'digest') return '다이제스트';
+  if (e.type === 'html') return 'HTML';
+  return `${e.brand.name} 브리핑`;
+}
 
 const esc = (s) => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -44,10 +84,14 @@ async function collectEntries(outDir) {
       try { report = JSON.parse(await readFile(path.join(outDir, `${date}.report.json`), 'utf-8')); } catch {}
       const meta = parseHtmlMeta(html);
       const isDigest = !report && /다이제스트/.test(meta.title);
+      const topic = topicFromReport(report, meta.title);
+      const brand = briefingBrand(topic);
       entries.push({
         date, file: f,
         type: report ? 'ai' : isDigest ? 'digest' : 'html',
-        title: report ? report.title_main : meta.title.replace(/ \| (?:오늘의 AI 브리핑|5분 AI 뉴스)$/, '').replace(/ — \d{4}-\d{2}-\d{2}.*$/, ''),
+        topic,
+        brand,
+        title: report ? report.title_main : meta.title.replace(/ \| (?:오늘의 [^|]+ 브리핑|5분 AI 뉴스)$/, '').replace(/ — \d{4}-\d{2}-\d{2}.*$/, ''),
         sub: report?.title_sub || '',
         desc: report?.description || meta.desc,
         keywords: report?.keywords_top5 || [],
@@ -88,11 +132,11 @@ function calendarHtml(entries) {
 
 function cardHtml(e, isNew) {
   const p = dateParts(e.date);
-  const typeLabel = e.type === 'ai' ? 'AI 브리핑' : e.type === 'digest' ? '다이제스트' : 'HTML';
-  return `<a class="card" href="${esc(e.file)}" data-search="${esc((e.title + ' ' + e.sub + ' ' + e.keywords.join(' ') + ' ' + e.date).toLowerCase())}">
-<div class="card-thumb"><span class="ct-date">${e.date.replaceAll('-', '.')}</span><span class="ct-brand">오늘의 AI 브리핑.</span></div>
+  const label = typeLabel(e);
+  return `<a class="card" href="${esc(e.file)}" data-search="${esc((e.title + ' ' + e.sub + ' ' + e.keywords.join(' ') + ' ' + e.topic + ' ' + e.date).toLowerCase())}">
+<div class="card-thumb"><span class="ct-date">${e.date.replaceAll('-', '.')}</span><span class="ct-brand">${esc(e.brand.newsletter)}.</span></div>
 <div class="card-body">
-<div class="card-meta">${isNew ? '<span class="badge-new">NEW</span>' : ''}<span>${String(p.m).padStart(2, '0')}-${String(p.day).padStart(2, '0')} (${p.dow})</span><span>·</span><span>${typeLabel}</span>${e.type === 'ai' ? `<span>·</span><span>${e.minutes}분</span>` : ''}</div>
+<div class="card-meta">${isNew ? '<span class="badge-new">NEW</span>' : ''}<span>${String(p.m).padStart(2, '0')}-${String(p.day).padStart(2, '0')} (${p.dow})</span><span>·</span><span>${esc(label)}</span>${e.type === 'ai' ? `<span>·</span><span>${e.minutes}분</span>` : ''}</div>
 <div class="card-title">${esc(e.title)}</div>
 <div class="card-desc">${esc(e.desc).slice(0, 150)}</div>
 <div class="card-read">리포트 읽기 →</div>
@@ -105,12 +149,22 @@ function pageHtml(entries) {
   const latest = entries[0];
   const rest = entries.slice(1);
   const lp = latest ? dateParts(latest.date) : null;
+  const site = siteBrand(entries);
+  const tagline = site.key === 'mixed'
+    ? '토픽별 데일리 브리핑 아카이브'
+    : `매일 아침 ${site.name} 브리핑 아카이브`;
+  const ogDesc = site.key === 'mixed'
+    ? '매일 아침 중요한 신호만 골라 전하는 데일리 브리핑'
+    : `매일 아침 중요한 ${site.name} 신호만 골라 전하는 데일리 브리핑`;
+  const footerLine = site.key === 'mixed'
+    ? '매일 아침 타임라인에서 중요한 신호만 골라 전하는 데일리 브리핑 · 이 페이지는 Xsearch 뉴스 빌더가 자동 생성합니다'
+    : `매일 아침 ${esc(site.name)} 타임라인에서 중요한 신호만 골라 전하는 데일리 브리핑 · 이 페이지는 Xsearch 뉴스 빌더가 자동 생성합니다`;
 
   const hero = latest ? `
-<section class="hero" data-search="${esc((latest.title + ' ' + latest.sub + ' ' + latest.keywords.join(' ') + ' ' + latest.date).toLowerCase())}">
+<section class="hero" data-search="${esc((latest.title + ' ' + latest.sub + ' ' + latest.keywords.join(' ') + ' ' + latest.topic + ' ' + latest.date).toLowerCase())}">
 <div class="hero-left">
 <div class="section-label">최신 발행 · LATEST ISSUE</div>
-<div class="hero-meta"><span class="badge-new">최신</span> ${latest.date.replaceAll('-', '.')} (${lp.dow}) · ${latest.type === 'ai' ? 'AI 브리핑' : '다이제스트'} · ${latest.minutes}분 읽기</div>
+<div class="hero-meta"><span class="badge-new">최신</span> ${latest.date.replaceAll('-', '.')} (${lp.dow}) · ${esc(typeLabel(latest))} · ${latest.minutes}분 읽기</div>
 <h1 class="hero-title">${esc(latest.title)}</h1>
 <p class="hero-desc">${esc(latest.desc)}</p>
 ${latest.keywords.length ? `<div class="kw-row">${latest.keywords.map((k) => `<span class="kw">#${esc(k)}</span>`).join('')}</div>` : ''}
@@ -121,34 +175,34 @@ ${latest.keywords.length ? `<div class="kw-row">${latest.keywords.map((k) => `<s
 <div><b>${latest.minutes}분</b><s>읽기</s></div>
 </div>
 </div>
-<div class="hero-right"><div class="hr-top">TODAY'S BRIEF</div><div class="hr-date">${latest.date.replaceAll('-', '.')} (${lp.dow})</div><div class="hr-logo">오늘의<br>AI 브리핑<span class="dot-red">.</span></div><div class="hr-sub">매일 아침 · AI·테크 트렌드</div></div>
+<div class="hero-right"><div class="hr-top">TODAY'S BRIEF</div><div class="hr-date">${latest.date.replaceAll('-', '.')} (${lp.dow})</div><div class="hr-logo">오늘의<br>${esc(latest.brand.name)} 브리핑<span class="dot-red">.</span></div><div class="hr-sub">매일 아침 · ${esc(latest.brand.name)} 트렌드</div></div>
 </section>` : '<section class="hero"><div class="hero-left"><h1 class="hero-title">아직 발행된 브리핑이 없습니다</h1><p class="hero-desc">빌더에서 수집 JSON을 업로드해 첫 브리핑을 생성하세요.</p></div></section>';
 
   return `<!DOCTYPE html>
 <html lang="ko"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>오늘의 AI 브리핑 — 아카이브</title>
-<meta name="description" content="날짜별 AI 데일리 브리핑 아카이브 — 총 ${entries.length}건">
+<title>${esc(site.newsletter)} — 아카이브</title>
+<meta name="description" content="날짜별 ${esc(site.name)} 데일리 브리핑 아카이브 — 총 ${entries.length}건">
 <link rel="canonical" href="https://news.soverin.cloud/output/">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="오늘의 AI 브리핑">
+<meta property="og:site_name" content="${esc(site.newsletter)}">
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://news.soverin.cloud/output/">
-<meta property="og:title" content="오늘의 AI 브리핑 — 아카이브">
-<meta property="og:description" content="매일 아침 중요한 AI·테크 신호만 골라 전하는 데일리 브리핑">
+<meta property="og:title" content="${esc(site.newsletter)} — 아카이브">
+<meta property="og:description" content="${esc(ogDesc)}">
 <meta property="og:image" content="https://news.soverin.cloud/og-image.jpg">
 <meta property="og:image:secure_url" content="https://news.soverin.cloud/og-image.jpg">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="오늘의 AI 브리핑">
+<meta property="og:image:alt" content="${esc(site.newsletter)}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="오늘의 AI 브리핑 — 아카이브">
-<meta name="twitter:description" content="매일 아침 중요한 AI·테크 신호만 골라 전하는 데일리 브리핑">
+<meta name="twitter:title" content="${esc(site.newsletter)} — 아카이브">
+<meta name="twitter:description" content="${esc(ogDesc)}">
 <meta name="twitter:image" content="https://news.soverin.cloud/og-image.jpg">
-<meta name="twitter:image:alt" content="오늘의 AI 브리핑">
+<meta name="twitter:image:alt" content="${esc(site.newsletter)}">
 <link rel="stylesheet" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
 :root{--bg:#faf9f6;--ink:#141414;--muted:#6d6a63;--red:#b3261e;--red-deep:#7a1512;--border:#e7e4dc;--surface:#fff;--thumb1:#2a0d0d;--thumb2:#511511}
@@ -235,8 +289,8 @@ document.documentElement.dataset.theme=t}catch(e){}})();
 </head><body>
 <div class="topbar"><div class="wrap"><span>최신 호 · <b>${latest ? latest.date.replaceAll('-', '.') : '—'}</b></span><span>브리핑 ${entries.length}건 보관</span><span class="right">생성 ${built}</span></div></div>
 <header class="site"><div class="wrap">
-<div class="logo">오늘의 AI 브리핑<span class="dot-red">.</span></div>
-<div class="tagline">매일 아침 AI·테크 브리핑 아카이브</div>
+<div class="logo">${esc(site.newsletter)}<span class="dot-red">.</span></div>
+<div class="tagline">${esc(tagline)}</div>
 <button class="theme-btn" id="themeBtn" type="button" aria-label="다크 모드로 전환" title="다크 모드로 전환">◐</button>
 </div></header>
 <main class="wrap">
@@ -271,8 +325,8 @@ ${calendarHtml(entries)}
 </section>
 </main>
 <footer><div class="wrap">
-<div class="logo">오늘의 AI 브리핑<span class="dot-red">.</span></div>
-<div>매일 아침 AI·테크 타임라인에서 중요한 신호만 골라 전하는 데일리 브리핑 · 이 페이지는 Xsearch 뉴스 빌더가 자동 생성합니다</div>
+<div class="logo">${esc(site.newsletter)}<span class="dot-red">.</span></div>
+<div>${footerLine}</div>
 </div></footer>
 <script>
 var themeBtn=document.getElementById('themeBtn');

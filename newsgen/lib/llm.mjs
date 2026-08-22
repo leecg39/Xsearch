@@ -1,5 +1,6 @@
 // LLM 호출(Grok 구독·Anthropic·OpenAI·Gemini)과 '5분 AI 뉴스' 편집 프롬프트, 구조화 JSON 파싱.
 import { GROK } from './grok-auth.mjs';
+import { DEFAULT_TOPIC, briefingBrand, normalizeTopicKey } from '../../src/topics.mjs';
 
 export const ENV_KEYS = {
   grok: 'XAI_OAUTH_TOKEN', // SuperGrok OAuth 액세스 토큰을 직접 넣는 우회 경로
@@ -69,6 +70,10 @@ export async function chatLLM({ provider, model, apiKey, system, user, maxTokens
   if (provider === 'grok') {
     // SuperGrok 구독 경로: 유료 api.x.ai가 아니라 Grok CLI 채팅 프록시로 보낸다.
     // service_tier·text.verbosity·reasoning은 xAI가 400을 내는 필드라 보내지 않는다.
+    // 프록시가 input text를 JSON식 언이스케이프하므로, 잘린 \\u/제어문자 잔여를 한 번 더 제거한다.
+    const { sanitizePromptText } = await import('./preprocess.mjs');
+    const safeSystem = sanitizePromptText(system);
+    const safeUser = sanitizePromptText(user);
     const res = await fetch(`${GROK.proxyBase}/responses`, {
       method: 'POST',
       headers: {
@@ -79,8 +84,8 @@ export async function chatLLM({ provider, model, apiKey, system, user, maxTokens
       },
       body: JSON.stringify({
         model,
-        instructions: system,
-        input: [{ role: 'user', content: [{ type: 'input_text', text: user }] }],
+        instructions: safeSystem,
+        input: [{ role: 'user', content: [{ type: 'input_text', text: safeUser }] }],
         max_output_tokens: maxTokens,
         store: false,
         stream: false,
@@ -168,24 +173,26 @@ export async function listModels({ provider, apiKey }) {
   throw new Error(`알 수 없는 프로바이더: ${provider}`);
 }
 
-const SYSTEM_PROMPT = `당신은 한국어 데일리 뉴스레터 '오늘의 AI 브리핑'의 편집장입니다. X(트위터)에서 수집한 트윗 목록을 재료로, 하루치 AI 뉴스 브리핑을 만듭니다.
+export function systemPrompt(topic = DEFAULT_TOPIC) {
+  const { newsletter, newsLabel, name } = briefingBrand(topic);
+  return `당신은 한국어 데일리 뉴스레터 '${newsletter}'의 편집장입니다. 수집한 게시물 목록을 재료로, 하루치 ${newsLabel} 브리핑을 만듭니다.
 
 [문체 규칙]
 - 존댓말 "-습니다"체. 담백하고 단정한 신문 문체. 과장·감탄·홍보 어투 금지.
-- 트윗에서 확인되는 사실만 씁니다. 원문에 없는 내용을 지어내지 않으며, 단일 출처 주장은 "~라고 밝혔습니다", "~라는 주장입니다"로 한정합니다.
+- 게시물에서 확인되는 사실만 씁니다. 원문에 없는 내용을 지어내지 않으며, 단일 출처 주장은 "~라고 밝혔습니다", "~라는 주장입니다"로 한정합니다.
 - 회사·제품명은 관례적 한글 표기를 우선합니다(마이크로소프트, 오픈AI, 딥마인드, 앤트로픽, 클로드, 제미나이 등).
 - 문단에서 강조할 핵심 구절 1곳은 **이렇게** 별표 두 개로 감쌉니다(전체에서 아껴 씁니다).
 - 숫자는 구체적으로 씁니다(달러 금액, 퍼센트, 배수 등). 한국 독자 기준 시간은 KST입니다.
 
 [작업 절차]
-1. AI·소프트웨어·테크 산업과 무관한 트윗(스포츠, 연예, 일상, 정치 일반 등)은 전부 무시합니다.
-2. 남은 트윗을 주제별로 묶어 오늘의 토픽 5~6개를 만듭니다. 참여도(❤🔁💬🔖👁)가 높고 여러 계정이 다룬 주제를 우선합니다. 마지막 토픽은 가능하면 "🆕 오늘의 신기능·신제품 출시 — (요약 키워드)" 형식의 모음 토픽으로 만듭니다.
+1. ${name} 주제와 무관한 게시물(스포츠, 연예, 일상, 정치 일반 등)은 전부 무시합니다.
+2. 남은 게시물을 주제별로 묶어 오늘의 토픽 5~6개를 만듭니다. 참여도(❤🔁💬🔖👁)가 높고 여러 계정이 다룬 주제를 우선합니다. 마지막 토픽은 가능하면 "🆕 오늘의 신기능·신제품 출시 — (요약 키워드)" 형식의 모음 토픽으로 만듭니다.
 3. 각 토픽의 제목은 사실 중심의 평서문 한 문장으로 씁니다(낚시성 금지, 번호는 붙이지 않음).
-4. figure는 미디어:이미지 표시가 있는 트윗 중에서만 고르고, 해당 트윗 번호(i)를 적습니다. 캡션은 "무엇이 보이는지 한 문장 + 왜 의미 있는지 한 문장"으로 씁니다. "그림 N." 번호는 시스템이 붙이므로 쓰지 않습니다.
-5. 타임라인은 트윗의 KST 시각을 그대로 사용해 시간순으로 6~9개 만듭니다.
+4. figure는 미디어:이미지 표시가 있는 게시물 중에서만 고르고, 해당 번호(i)를 적습니다. 캡션은 "무엇이 보이는지 한 문장 + 왜 의미 있는지 한 문장"으로 씁니다. "그림 N." 번호는 시스템이 붙이므로 쓰지 않습니다.
+5. 타임라인은 게시물의 KST 시각을 그대로 사용해 시간순으로 6~9개 만듭니다.
 6. 감정/온도 분석의 4개 카테고리(전환·성장·주의·과열)는 고정이며, 각 카테고리의 게이지 위치(pos, 0~100)와 오늘 데이터에 근거한 설명을 씁니다.
-7. 실무 팁 6개는 오늘 트윗에서 실제로 확인된 내용만으로, 실무자가 바로 적용할 수 있게 씁니다. 근거 트윗 번호(i)를 답니다.
-8. source_ids에는 그 토픽의 근거가 된 트윗 번호를 모두 나열합니다(토픽당 3~17개).
+7. 실무 팁 6개는 오늘 게시물에서 실제로 확인된 내용만으로, 실무자가 바로 적용할 수 있게 씁니다. 근거 번호(i)를 답니다.
+8. source_ids에는 그 토픽의 근거가 된 게시물 번호를 모두 나열합니다(토픽당 3~17개).
 
 [출력 형식]
 코드펜스 없이 아래 스키마의 JSON 하나만 출력합니다. 모든 문자열은 한국어입니다.
@@ -223,8 +230,12 @@ const SYSTEM_PROMPT = `당신은 한국어 데일리 뉴스레터 '오늘의 AI 
   "tips": [ {"title":"팁 제목","body":"설명 2~3문장","i":5} ],   // 정확히 6개
   "verification": "확인 방식 설명 2~3문장(어떤 출처끼리 교차확인했는지)"
 }`;
+}
 
-export function buildUserPrompt({ date, cands, promptLines }) {
+export const SYSTEM_PROMPT = systemPrompt('ai');
+
+export function buildUserPrompt({ date, cands, promptLines, topic = DEFAULT_TOPIC }) {
+  const { newsletter } = briefingBrand(topic);
   return `보고서 날짜: ${date} (이 날짜 기준으로 "오늘"을 씁니다)
 후보 트윗: ${cands.length}개 (참여도 상위순, 번호 [i]는 인용에 사용)
 라벨 의미: 🔥 인기(좋아요 중심) · 🔁 공유(리트윗 비율 높음) · 💬 논쟁(댓글 비율 높음) · 🔖 저장(북마크 많음) · 🚀 떠오름(작은 계정인데 확산)
@@ -233,7 +244,7 @@ export function buildUserPrompt({ date, cands, promptLines }) {
 ${promptLines}
 === 트윗 목록 끝 ===
 
-위 재료로 ${date}자 '오늘의 AI 브리핑' JSON을 작성하세요.`;
+위 재료로 ${date}자 '${newsletter}' JSON을 작성하세요.`;
 }
 
 export function extractJSON(text) {
@@ -250,7 +261,8 @@ export function extractJSON(text) {
 }
 
 /** LLM 응답을 렌더러가 신뢰할 수 있는 형태로 정규화 */
-export function normalizeReport(r, date) {
+export function normalizeReport(r, date, topic = DEFAULT_TOPIC) {
+  const { newsLabel } = briefingBrand(topic);
   const str = (v, d = '') => (typeof v === 'string' && v.trim() ? v.trim() : d);
   const arr = (v) => (Array.isArray(v) ? v : []);
   const intOr = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -286,7 +298,8 @@ export function normalizeReport(r, date) {
 
   return {
     date,
-    title_main: str(r.title_main, `${date} AI 뉴스`),
+    topic: normalizeTopicKey(topic),
+    title_main: str(r.title_main, `${date} ${newsLabel}`),
     title_sub: str(r.title_sub, ''),
     description: str(r.description, str(r.intro, '').slice(0, 140)),
     keywords_top5: arr(r.keywords_top5).map((k) => str(k)).filter(Boolean).slice(0, 5),
@@ -305,8 +318,9 @@ export function normalizeReport(r, date) {
 }
 
 /** 편집 브리핑 생성 (파싱 실패 시 1회 재시도) */
-export async function generateReport({ provider, model, apiKey, date, cands, onStatus }) {
-  const user = buildUserPrompt({ date, cands, promptLines: (await import('./preprocess.mjs')).toPromptLines(cands) });
+export async function generateReport({ provider, model, apiKey, date, cands, onStatus, topic = DEFAULT_TOPIC }) {
+  const user = buildUserPrompt({ date, cands, promptLines: (await import('./preprocess.mjs')).toPromptLines(cands), topic });
+  const system = systemPrompt(topic);
   let lastErr;
   for (let attempt = 1; attempt <= 2; attempt++) {
     onStatus?.(`${provider} ${model} 호출 중 (시도 ${attempt}/2)`);
@@ -314,9 +328,9 @@ export async function generateReport({ provider, model, apiKey, date, cands, onS
       ? '\n\n[경고] 직전 출력이 유효한 JSON이 아니었습니다. 이번에는 코드펜스·주석·설명 없이 유효한 JSON 객체 하나만 출력하세요.'
       : '';
     try {
-      const text = await chatLLM({ provider, model, apiKey, system: SYSTEM_PROMPT, user: user + extra });
+      const text = await chatLLM({ provider, model, apiKey, system, user: user + extra });
       const raw = extractJSON(text);
-      return normalizeReport(raw, date);
+      return normalizeReport(raw, date, topic);
     } catch (e) {
       lastErr = e;
       // 인증·모델 오류는 재시도해도 소용없으므로 즉시 중단

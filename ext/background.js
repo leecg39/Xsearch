@@ -6,6 +6,7 @@ const DEFAULTS = {
   delay: 2000,
   filterMode: 0,
   autoStart: false,
+  topic: "ai",
   reKeep: "",
   reWeak: "",
   reDrop: "",
@@ -13,11 +14,31 @@ const DEFAULTS = {
   builderUrl: "https://news.soverin.cloud",
   builderUsername: "xsearch",
   builderPassword: "",
+  enableLinkedIn: false,
 };
 
-async function getConfig() {
-  const cfg = await chrome.storage.local.get(DEFAULTS);
+const SOURCE_URL_RE = [
+  /^https:\/\/(x|twitter)\.com\//,
+  /^https:\/\/([a-z0-9-]+\.)?reddit\.com\//,
+  /^https:\/\/(www\.)?threads\.(net|com)\//,
+  /^https:\/\/([a-z0-9-]+\.)?linkedin\.com\//,
+];
+
+function isSupportedUrl(url) {
+  return SOURCE_URL_RE.some((re) => re.test(url || ""));
+}
+
+function migrateConfig(stored) {
+  const cfg = { ...DEFAULTS, ...stored };
+  if (stored.topic == null || stored.topic === "") {
+    cfg.topic = stored.reKeep || stored.reWeak || stored.reDrop ? "custom" : "ai";
+  }
   return cfg;
+}
+
+async function getConfig() {
+  const stored = await chrome.storage.local.get(null);
+  return migrateConfig(stored);
 }
 
 // MAIN world에 설정을 심는다 (injected.js보다 먼저 실행되어야 함)
@@ -55,7 +76,7 @@ async function startCollector(tabId) {
 }
 
 chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab.id || !/^https:\/\/(x|twitter)\.com\//.test(tab.url || "")) return;
+  if (!tab.id || !isSupportedUrl(tab.url || "")) return;
   try {
     await startCollector(tab.id);
   } catch (e) {
@@ -97,7 +118,7 @@ function notifyBrief(tabId, ok, error) {
 }
 
 // 브리핑 내보내기: 수집 JSON을 원격 또는 로컬 뉴스 빌더로 보내고 빌더 탭을 연다.
-async function exportBrief(content, fname, tabId) {
+async function exportBrief(content, fname, tabId, topic) {
   const { builderUrl, builderUsername, builderPassword } = await chrome.storage.local.get({
     builderUrl: DEFAULTS.builderUrl,
     builderUsername: DEFAULTS.builderUsername,
@@ -113,7 +134,7 @@ async function exportBrief(content, fname, tabId) {
     const res = await fetch(base + "/api/import", {
       method: "POST",
       headers,
-      body: JSON.stringify({ fileName: fname || "tw_export.json", tweets }),
+      body: JSON.stringify({ fileName: fname || "tw_export.json", tweets, topic: topic || "ai" }),
     });
     if (res.status === 401) throw new Error("빌더 인증 실패 — 확장 설정의 사용자명과 비밀번호를 확인하세요");
     if (!res.ok) throw new Error("HTTP " + res.status);
@@ -155,7 +176,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true; // sendResponse를 비동기로 호출함을 표시
   }
   if (msg && msg.__twc === "brief" && typeof msg.content === "string") {
-    exportBrief(msg.content, msg.fname, sender.tab && sender.tab.id);
+    exportBrief(msg.content, msg.fname, sender.tab && sender.tab.id, msg.topic);
     return;
   }
 });

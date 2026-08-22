@@ -1,5 +1,6 @@
 // 보고서 JSON → fiv.co.kr 스타일 HTML 본문 렌더링. 다이제스트(규칙 기반) 렌더러 포함.
 import { pageShell } from './template.mjs';
+import { briefingBrand, DEFAULT_TOPIC } from '../../src/topics.mjs';
 
 export function esc(s) {
   return String(s ?? '')
@@ -33,7 +34,8 @@ function firstImageUrl(t) {
  * AI 편집 브리핑 렌더링.
  * @returns {{html:string, imageUrls:string[]}} imageUrls는 base64 인라인 대상
  */
-export function renderReport({ report, cands, baseUrl, siteScripts }) {
+export function renderReport({ report, cands, baseUrl, siteScripts, topic = DEFAULT_TOPIC }) {
+  const brand = briefingBrand(topic);
   const byI = new Map(cands.map((c) => [c.i, c]));
   const images = [];
   let figNo = 0;
@@ -120,7 +122,7 @@ export function renderReport({ report, cands, baseUrl, siteScripts }) {
 <p><strong>🏷 라벨 가이드</strong> — 🔥 인기(좋아요 중심) · 🔁 공유(리트윗 비율 높음) · 💬 논쟁(댓글 비율 높음) · 🔖 저장(북마크 많음) · 🚀 떠오름(작은 계정인데 확산 시작)</p>
 </blockquote>`);
 
-  const title = `${report.title_main}${report.title_sub ? ' · ' + report.title_sub : ''} — ${report.date} AI 뉴스 | 오늘의 AI 브리핑`;
+  const title = `${report.title_main}${report.title_sub ? ' · ' + report.title_sub : ''} — ${report.date} ${brand.newsLabel} | ${brand.newsletter}`;
   const html = pageShell({
     title,
     description: report.description,
@@ -128,6 +130,7 @@ export function renderReport({ report, cands, baseUrl, siteScripts }) {
     bodyHtml: parts.join('\n'),
     baseUrl,
     siteScripts,
+    siteName: brand.newsletter,
   });
   return { html, imageUrls: images };
 }
@@ -137,7 +140,8 @@ function linkify(escapedText) {
 }
 
 /** 규칙 기반 다이제스트 렌더링 (LLM 불필요, 파이프라인 점검용) */
-export function renderDigest({ date, cands, stats, baseUrl, siteScripts, topN = 40 }) {
+export function renderDigest({ date, cands, stats, baseUrl, siteScripts, topN = 40, topic = DEFAULT_TOPIC }) {
+  const brand = briefingBrand(topic);
   const dotDate = date.replace(/-/g, '.');
   const top = cands.slice(0, topN);
 
@@ -155,7 +159,7 @@ export function renderDigest({ date, cands, stats, baseUrl, siteScripts, topN = 
   parts.push(`<blockquote><p><strong>규칙 기반 자동 다이제스트</strong> — AI 편집을 거치지 않은 미리보기입니다. 참여도 점수(좋아요·리트윗·북마크·댓글·조회수 log 가중 합)에 AI 관련도 가중치를 곱해 상위 ${top.length}건을 뽑았습니다.</p></blockquote>`);
   parts.push(`<div class="keynum">
 <div class="kn-cell"><div class="kn-val">${fmtNum(stats.total)}</div><div class="kn-lab">수집 트윗</div><div class="kn-sub">중복 제거 전 기준</div></div>
-<div class="kn-cell"><div class="kn-val">${fmtNum(stats.aiCount)}</div><div class="kn-lab">AI 관련 추정</div><div class="kn-sub">키워드 매칭 기준</div></div>
+<div class="kn-cell"><div class="kn-val">${fmtNum(stats.aiCount)}</div><div class="kn-lab">${esc(brand.name)} 관련 추정</div><div class="kn-sub">키워드 매칭 기준</div></div>
 <div class="kn-cell"><div class="kn-val">${fmtNum(stats.likesSum)}</div><div class="kn-lab">좋아요 합계</div><div class="kn-sub">전체 수집분</div></div>
 <div class="kn-cell"><div class="kn-val">${handleSet.size}</div><div class="kn-lab">상위 계정 수</div><div class="kn-sub">Top ${top.length} 기준</div></div>
 </div>`);
@@ -184,12 +188,13 @@ ${img ? `<img class="tw-thumb" loading="lazy" src="${esc(img)}" alt="">` : ''}${
   parts.push(`<blockquote><p><strong>🏷 라벨 가이드</strong> — 🔥 인기(좋아요 중심) · 🔁 공유(리트윗 비율 높음) · 💬 논쟁(댓글 비율 높음) · 🔖 저장(북마크 많음) · 🚀 떠오름(작은 계정인데 확산 시작)</p></blockquote>`);
 
   const html = pageShell({
-    title: `X 트렌드 다이제스트 — ${date} | 오늘의 AI 브리핑`,
-    description: `${date} X(트위터) 수집 트윗 ${stats.total}건 중 참여도 상위 ${top.length}건 규칙 기반 다이제스트`,
+    title: `X 트렌드 다이제스트 — ${date} | ${brand.newsletter}`,
+    description: `${date} 수집 ${stats.total}건 중 참여도 상위 ${top.length}건 규칙 기반 다이제스트`,
     date,
     bodyHtml: parts.join('\n'),
     baseUrl,
     siteScripts,
+    siteName: brand.newsletter,
   });
   return { html, imageUrls: [] };
 }

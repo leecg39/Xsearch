@@ -1,9 +1,9 @@
 {
   "name": "xsearch",
-  "version": "4.9.0",
+  "version": "5.0.0",
   "private": true,
   "type": "module",
-  "description": "Xsearch — X(트위터) 게시물 수집 북마클릿 + AI 브리핑 빌더",
+  "description": "Xsearch — X/Reddit/Threads 게시물 수집 북마클릿 + 토픽별 브리핑 빌더",
   "scripts": {
     "build": "node build.mjs",
     "news": "node newsgen/server.mjs",

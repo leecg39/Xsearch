@@ -14,7 +14,7 @@ const ng = (msg) => {
   failed = 1;
 };
 
-const { version, src } = prepareCollectorSource(root);
+const { version, src } = await prepareCollectorSource(root);
 
 // 1) 북마클릿: 빌드 산출물이 소스와 일치하는지
 console.log("[북마클릿]");
@@ -41,6 +41,13 @@ try {
     ok("news.soverin.cloud 호스트 권한 포함");
   } else {
     ng("news.soverin.cloud 호스트 권한 누락");
+  }
+  if (manifest.host_permissions?.includes("https://www.reddit.com/*") &&
+      manifest.host_permissions?.includes("https://www.threads.net/*") &&
+      manifest.host_permissions?.includes("https://www.threads.com/*")) {
+    ok("Reddit·Threads 호스트 권한 포함");
+  } else {
+    ng("Reddit·Threads 호스트 권한 누락");
   }
   for (const f of ["background.js", "bridge.js", "options.html", "options.js", "injected.js"]) {
     if (!fs.existsSync(new URL("dist-extension/" + f, root))) ng(`누락: dist-extension/${f}`);
@@ -76,10 +83,17 @@ try {
   } else {
     ng("빌더 인증 기본 설정이 안전하지 않음");
   }
-  // 치환된 기본 정규식이 실제로 유효한지
-  const m = optJs.match(/reKeep: ("(?:[^"\\]|\\.)*")/);
+  // 치환된 토픽 프리셋 정규식이 실제로 유효한지
+  const m = optJs.match(/"reKeep":("(?:[^"\\]|\\.)*")/);
   if (m && new RegExp(JSON.parse(m[1]), "i")) {
     ok("기본 정규식 유효");
+  } else {
+    ng("토픽 프리셋 reKeep 추출 실패");
+  }
+  if (bgJs.includes("enableLinkedIn: false") && bgJs.includes("topic: \"ai\"")) {
+    ok("토픽 기본값 ai · LinkedIn 기본 OFF");
+  } else {
+    ng("토픽/LinkedIn 기본값이 올바르지 않음");
   }
   // 구문 검사 (node --check)
   for (const f of ["background.js", "bridge.js", "options.js", "injected.js"]) {

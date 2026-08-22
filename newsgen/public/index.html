@@ -102,7 +102,7 @@ footer{color:var(--muted);font-size:.8em;text-align:center;margin-top:30px}
     <div class="logo-badge"><img src="/icon32.png" alt="Xsearch" style="width:22px;height:22px;border-radius:5px"></div>
     <div>
       <h1>Xsearch 뉴스 빌더</h1>
-      <div class="sub">Xsearch 수집 JSON → '오늘의 AI 브리핑' 형태의 데일리 브리핑 HTML</div>
+      <div class="sub">Xsearch 수집 JSON → 토픽별 데일리 브리핑 HTML</div>
     </div>
     <a class="btn" href="/output/" target="_blank" style="margin-left:auto">🗞 아카이브</a>
   </div>
@@ -121,6 +121,16 @@ footer{color:var(--muted);font-size:.8em;text-align:center;margin-top:30px}
     <div class="field" style="max-width:220px">
       <label for="dateInput">보고서 날짜 (파일명에서 자동 인식)</label>
       <input type="date" id="dateInput">
+    </div>
+    <div class="field" style="max-width:220px">
+      <label for="topic">토픽</label>
+      <select id="topic">
+        <option value="ai" selected>AI</option>
+        <option value="dev">개발/테크</option>
+        <option value="finance">경제/금융</option>
+        <option value="startup">스타트업/비즈</option>
+        <option value="custom">자유 입력</option>
+      </select>
     </div>
   </div>
 </section>
@@ -236,7 +246,7 @@ footer{color:var(--muted);font-size:.8em;text-align:center;margin-top:30px}
 
 <script>
 const $ = (id) => document.getElementById(id);
-const state = { tweets: null, fileName: '', date: '' };
+const state = { tweets: null, fileName: '', date: '', fileSize: 0, topics: [], topicKeywords: {} };
 
 const DEFAULT_MODELS = {
   grok: ['grok-4.5', 'grok-build-0.1', 'grok-4.3'],
@@ -267,6 +277,7 @@ function loadPrefs() {
     if (typeof p.inlineImages === 'boolean') $('inlineImages').checked = p.inlineImages;
     if (typeof p.siteScripts === 'boolean') $('siteScripts').checked = p.siteScripts;
     if (p.baseUrl) $('baseUrl').value = p.baseUrl;
+    if (p.topic) $('topic').value = p.topic;
   } catch {}
   fillModelList();
 }
@@ -283,6 +294,7 @@ function savePrefs() {
   p.inlineImages = $('inlineImages').checked;
   p.siteScripts = $('siteScripts').checked;
   p.baseUrl = $('baseUrl').value;
+  p.topic = $('topic').value;
   localStorage.setItem('newsgen_prefs', JSON.stringify(p));
 }
 function fillModelList(models) {
@@ -312,6 +324,7 @@ function applyData(data, name, sizeBytes, sourceLabel) {
   if (!data.some((t) => t && (t.text || t.handle))) throw new Error('Xsearch 수집 형식(text/handle)이 아닙니다');
   state.tweets = data;
   state.fileName = name;
+  state.fileSize = sizeBytes || 0;
   const m = name.match(/(\d{4}-\d{2}-\d{2})/);
   state.date = m ? m[1] : maxDateKst(data);
   $('dateInput').value = state.date;
@@ -351,6 +364,7 @@ async function loadImport() {
     if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
     const size = new Blob([JSON.stringify(j.tweets)]).size;
     applyData(j.tweets, j.fileName || 'tw_import.json', size, '확장에서 가져옴');
+    if (j.topic) $('topic').value = j.topic;
     history.replaceState(null, '', '/builder'); // 새로고침 시 만료 오류 방지
   } catch (e) {
     setDropMessage('⚠️ 확장에서 데이터를 가져오지 못했습니다: ', e.message, '');
@@ -362,20 +376,48 @@ function maxDateKst(data) {
   const d = new Date((max || Date.now()) + 9 * 3600 * 1000);
   return d.toISOString().slice(0, 10);
 }
+function topicDisplayName(topic) {
+  const t = (state.topics || []).find((x) => x.id === topic);
+  return t ? t.name : 'AI';
+}
+const topicKwCache = new Map();
+function topicKwRes(topic) {
+  const kw = state.topicKeywords?.[topic] || state.topicKeywords?.ai || {};
+  const key = JSON.stringify(kw);
+  if (topicKwCache.has(key)) return topicKwCache.get(key);
+  const compile = (src) => {
+    if (!src) return null;
+    try { return new RegExp(src, 'i'); } catch { return null; }
+  };
+  const res = { en: compile(kw.en), ko: compile(kw.ko), jazh: compile(kw.jazh) };
+  topicKwCache.set(key, res);
+  return res;
+}
+function countTopicRelated(data, topic) {
+  const re = topicKwRes(topic || 'ai');
+  if (!re.en && !re.ko && !re.jazh) return 0;
+  let related = 0;
+  for (const t of data) {
+    const text = t.text || '';
+    if (!text) continue;
+    if ((re.en && re.en.test(text)) || (re.ko && re.ko.test(text)) || (re.jazh && re.jazh.test(text))) related++;
+  }
+  return related;
+}
 function showFileInfo(data, file, sourceLabel) {
   drop.classList.add('loaded');
   setDropMessage('✅ ', file.name, ' ' + (sourceLabel || '업로드됨') + ' (클릭해서 교체)');
   const langs = {};
-  let ai = 0;
-  const AI_RE = /\bai\b|llm|gpt|openai|claude|anthropic|gemini|deepmind|agent|모델|에이전트|인공지능|人工知能|人工智能/i;
+  const topic = $('topic').value || 'ai';
+  const topicLabel = topicDisplayName(topic);
   for (const t of data) {
     if (t.lang) langs[t.lang] = (langs[t.lang] || 0) + 1;
-    if (AI_RE.test(t.text || '')) ai++;
   }
+  const related = countTopicRelated(data, topic);
   const top = Object.entries(langs).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => k + ' ' + v).join(' · ');
   const chips = [
     ['트윗 ', data.length.toLocaleString(), '개'],
-    ['AI 관련 추정 ', ai.toLocaleString(), '개'],
+    [topicLabel + ' 관련 추정 ', related.toLocaleString(), '개'],
     ['언어 ', top, ''],
     ['크기 ', (file.size / 1024 / 1024).toFixed(1) + 'MB', ''],
   ];
@@ -529,6 +571,20 @@ async function checkEnv() {
     const has = j.envKeys[$('provider').value];
     $('envBadge').classList.toggle('hide', !has);
     if (j.outputDir) $('outDir').textContent = j.outputDir;
+    if (Array.isArray(j.topics) && j.topics.length) {
+      state.topics = j.topics;
+      const sel = $('topic');
+      const cur = sel.value;
+      sel.replaceChildren();
+      for (const t of j.topics) {
+        const o = document.createElement('option');
+        o.value = t.id;
+        o.textContent = t.name;
+        sel.appendChild(o);
+      }
+      if (cur) sel.value = cur;
+    }
+    if (j.topicKeywords) state.topicKeywords = j.topicKeywords;
   } catch {}
 }
 
@@ -559,7 +615,7 @@ $('go').addEventListener('click', async () => {
         tweets: state.tweets, date, mode,
         provider: $('provider').value, model: $('model').value.trim(), apiKey: $('apiKey').value,
         inlineImages: $('inlineImages').checked, siteScripts: $('siteScripts').checked,
-        baseUrl: $('baseUrl').value.trim(),
+        baseUrl: $('baseUrl').value.trim(), topic: $('topic').value,
       }),
     });
     const j = await res.json();
@@ -635,6 +691,13 @@ async function loadHistory() {
   } catch {}
 }
 $('refreshHist').addEventListener('click', loadHistory);
+
+$('topic').addEventListener('change', () => {
+  savePrefs();
+  if (state.tweets) {
+    showFileInfo(state.tweets, { name: state.fileName, size: state.fileSize });
+  }
+});
 
 loadPrefs();
 checkEnv();

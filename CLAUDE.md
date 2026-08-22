@@ -28,3 +28,9 @@ Key routing rules:
 - Trigger every new error-handling branch in a test.
 - Test both paths of every new conditional.
 - Never commit code that makes existing tests fail.
+
+## Architecture notes
+
+- Topic presets live in `src/topics.mjs` (single source for collector filters and newsgen keywords).
+- Source adapters live in `src/sources/` (x / reddit / threads / linkedin). `npm run build` bundles them into the bookmarklet via esbuild.
+- LinkedIn collection is opt-in (`enableLinkedIn`, default off) because of bot-detection risk.

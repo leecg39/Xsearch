@@ -1,17 +1,14 @@
 // Xsearch — 옵션 페이지
-// 기본 정규식은 빌드 시 collector.js에서 추출해 주입된다 ({{RE_*}} 플레이스홀더).
+// 토픽 프리셋은 빌드 시 src/topics.mjs에서 JSON으로 주입된다 ({{TOPICS_JSON}}).
 
-const DEFAULT_REGEX = {
-  reKeep: {{RE_KEEP}},
-  reWeak: {{RE_WEAK}},
-  reDrop: {{RE_DROP}},
-};
+const TOPICS = {{TOPICS_JSON}};
 
 const DEFAULTS = {
   target: 200,
   delay: 2000,
   filterMode: 0,
   autoStart: false,
+  topic: "ai",
   reKeep: "",
   reWeak: "",
   reDrop: "",
@@ -19,9 +16,46 @@ const DEFAULTS = {
   builderUrl: "https://news.soverin.cloud",
   builderUsername: "xsearch",
   builderPassword: "",
+  enableLinkedIn: false,
 };
 
 const $ = (id) => document.getElementById(id);
+
+function migrateConfig(stored) {
+  const cfg = { ...DEFAULTS, ...stored };
+  if (stored.topic == null || stored.topic === "") {
+    cfg.topic = stored.reKeep || stored.reWeak || stored.reDrop ? "custom" : "ai";
+  }
+  if (!TOPICS[cfg.topic]) cfg.topic = "ai";
+  return cfg;
+}
+
+function fillTopicSelect() {
+  const sel = $("topic");
+  sel.replaceChildren();
+  for (const [id, t] of Object.entries(TOPICS)) {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = t.name;
+    sel.appendChild(opt);
+  }
+}
+
+function applyTopicFields(topicKey, cfg) {
+  const preset = TOPICS[topicKey] || TOPICS.ai;
+  const isCustom = topicKey === "custom";
+  for (const k of ["reKeep", "reWeak", "reDrop"]) {
+    const el = $(k);
+    el.readOnly = !isCustom;
+    el.classList.toggle("ro", !isCustom);
+    if (isCustom) {
+      el.value = (cfg && cfg[k]) || "";
+    } else {
+      el.value = preset[k] || "";
+    }
+  }
+  $("customHint").classList.toggle("hide", !isCustom);
+}
 
 function validateRe(id, errId) {
   const src = $(id).value.trim();
@@ -40,14 +74,15 @@ function validateRe(id, errId) {
 }
 
 async function load() {
-  const cfg = await chrome.storage.local.get(DEFAULTS);
+  const stored = await chrome.storage.local.get(null);
+  const cfg = migrateConfig(stored);
   $("target").value = cfg.target;
   $("delay").value = cfg.delay;
   $("filterMode").value = String(cfg.filterMode);
   $("autoStart").checked = !!cfg.autoStart;
-  $("reKeep").value = cfg.reKeep;
-  $("reWeak").value = cfg.reWeak;
-  $("reDrop").value = cfg.reDrop;
+  $("enableLinkedIn").checked = !!cfg.enableLinkedIn;
+  $("topic").value = cfg.topic;
+  applyTopicFields(cfg.topic, cfg);
   $("briefAuto").checked = !!cfg.briefAuto;
   $("builderUrl").value = cfg.builderUrl;
   $("builderUsername").value = cfg.builderUsername;
@@ -55,22 +90,27 @@ async function load() {
 }
 
 async function save() {
-  const ok = ["Keep", "Weak", "Drop"]
-    .map((k) => validateRe("re" + k, "err" + k))
-    .every(Boolean);
-  if (!ok) return;
+  const topic = $("topic").value || "ai";
+  if (topic === "custom") {
+    const ok = ["Keep", "Weak", "Drop"]
+      .map((k) => validateRe("re" + k, "err" + k))
+      .every(Boolean);
+    if (!ok) return;
+  }
   const cfg = {
     target: Math.max(1, parseInt($("target").value, 10) || DEFAULTS.target),
     delay: Math.min(5000, Math.max(200, parseInt($("delay").value, 10) || DEFAULTS.delay)),
     filterMode: parseInt($("filterMode").value, 10) ? 1 : 0,
     autoStart: $("autoStart").checked,
-    reKeep: $("reKeep").value.trim(),
-    reWeak: $("reWeak").value.trim(),
-    reDrop: $("reDrop").value.trim(),
+    topic,
+    reKeep: topic === "custom" ? $("reKeep").value.trim() : "",
+    reWeak: topic === "custom" ? $("reWeak").value.trim() : "",
+    reDrop: topic === "custom" ? $("reDrop").value.trim() : "",
     briefAuto: $("briefAuto").checked,
     builderUrl: $("builderUrl").value.trim() || DEFAULTS.builderUrl,
     builderUsername: $("builderUsername").value.trim() || DEFAULTS.builderUsername,
     builderPassword: $("builderPassword").value,
+    enableLinkedIn: $("enableLinkedIn").checked,
   };
   await chrome.storage.local.set(cfg);
   $("msg").textContent = "저장됨";
@@ -82,19 +122,27 @@ function resetDefaults() {
   $("delay").value = DEFAULTS.delay;
   $("filterMode").value = "0";
   $("autoStart").checked = false;
-  $("reKeep").value = DEFAULT_REGEX.reKeep;
-  $("reWeak").value = DEFAULT_REGEX.reWeak;
-  $("reDrop").value = DEFAULT_REGEX.reDrop;
+  $("enableLinkedIn").checked = false;
+  $("topic").value = "ai";
+  applyTopicFields("ai", DEFAULTS);
   $("briefAuto").checked = false;
   $("builderUrl").value = DEFAULTS.builderUrl;
   $("builderUsername").value = DEFAULTS.builderUsername;
   $("builderPassword").value = DEFAULTS.builderPassword;
 }
 
+fillTopicSelect();
 $("save").addEventListener("click", save);
 $("reset").addEventListener("click", () => {
   resetDefaults();
   save();
+});
+$("topic").addEventListener("change", () => {
+  applyTopicFields($("topic").value, {
+    reKeep: $("reKeep").value,
+    reWeak: $("reWeak").value,
+    reDrop: $("reDrop").value,
+  });
 });
 for (const k of ["Keep", "Weak", "Drop"]) {
   $("re" + k).addEventListener("input", () => validateRe("re" + k, "err" + k));

@@ -3,14 +3,14 @@
 // `node build.mjs`로 직접 실행하거나, dev watcher(tools/dev.mjs)에서 build()를 재사용한다.
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
-import { toBookmarklet, prepareCollectorSource } from "./tools/lib.mjs";
+import { toBookmarklet, prepareCollectorSource, topicsJsonLiteral } from "./tools/lib.mjs";
 
 const root = new URL("./", import.meta.url);
 const read = (p) => fs.readFileSync(new URL(p, root), "utf8");
 
 export async function build() {
   // 1) 소스에 버전·로고 주입 (verify.mjs와 동일한 치환)
-  const { version, src } = prepareCollectorSource(root);
+  const { version, src } = await prepareCollectorSource(root);
 
   // 2) 공백 압축 + ASCII 이스케이프 → javascript: 북마클릿
   const bm = await toBookmarklet(src);
@@ -46,14 +46,6 @@ export async function build() {
   return { outName, size: bm.length };
 }
 
-// collector.js 소스에서 extRe()의 기본 정규식 리터럴을 추출한다.
-// (리터럴 안에 이스케이프되지 않은 '/'가 없다는 전제 — 현재 3개 모두 해당)
-function extractRegexSource(src, name) {
-  const m = src.match(new RegExp("EXT && EXT\\." + name + ",\\s*/([\\s\\S]*?)/i\\s*,"));
-  if (!m) throw new Error(`기본 정규식 추출 실패: ${name}`);
-  return m[1];
-}
-
 function buildExtension(srcWithVersion, version) {
   const outDir = new URL("dist-extension/", root);
   fs.rmSync(outDir, { recursive: true, force: true });
@@ -63,11 +55,7 @@ function buildExtension(srcWithVersion, version) {
   fs.writeFileSync(new URL("injected.js", outDir), srcWithVersion);
 
   // ext/* 복사 + 플레이스홀더 치환
-  const reDefaults = {
-    "{{RE_KEEP}}": JSON.stringify(extractRegexSource(srcWithVersion, "reKeep")),
-    "{{RE_WEAK}}": JSON.stringify(extractRegexSource(srcWithVersion, "reWeak")),
-    "{{RE_DROP}}": JSON.stringify(extractRegexSource(srcWithVersion, "reDrop")),
-  };
+  const topicsLiteral = topicsJsonLiteral();
   for (const f of fs.readdirSync(new URL("ext/", root))) {
     const srcUrl = new URL("ext/" + f, root);
     if (!fs.statSync(srcUrl).isFile()) continue;
@@ -78,9 +66,7 @@ function buildExtension(srcWithVersion, version) {
     }
     let content = read("ext/" + f);
     content = content.replaceAll("__TWC_VERSION__", version);
-    for (const [ph, val] of Object.entries(reDefaults)) {
-      content = content.replaceAll(ph, val);
-    }
+    content = content.replaceAll("{{TOPICS_JSON}}", () => topicsLiteral);
     fs.writeFileSync(new URL(f, outDir), content);
   }
 }

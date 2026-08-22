@@ -1,6 +1,13 @@
 // Xsearch — content script (isolated world)
 // 역할: MAIN world의 postMessage를 background로 중계 + 자동 시작
 
+// 확장을 다시 로드하면 기존 탭의 이 스크립트는 무효화되므로 startCollector가
+// 매번 재주입한다. 그때 리스너가 중복 등록되면 다운로드·전송이 두 번 일어난다.
+if (window.__twcBridgeLoaded) {
+  // 이미 살아 있는 중계자가 있다 — 아무것도 하지 않는다
+} else {
+  window.__twcBridgeLoaded = true;
+
 // MAIN world(injected.js) → background 중계 (다운로드 + 브리핑 내보내기)
 window.addEventListener("message", (ev) => {
   if (ev.source !== window) return;
@@ -8,7 +15,7 @@ window.addEventListener("message", (ev) => {
   if (!d || typeof d.content !== "string") return;
   if (d.__twc === "brief") {
     // 브리핑 내보내기: background가 설정된 빌더(/api/import)로 전송 후 탭을 연다
-    chrome.runtime.sendMessage({ __twc: "brief", content: d.content, fname: d.fname });
+    chrome.runtime.sendMessage({ __twc: "brief", content: d.content, fname: d.fname, topic: d.topic });
     return;
   }
   if (d.__twc !== "download") return;
@@ -48,3 +55,4 @@ chrome.storage.local
     // 확장 재설치·업데이트 직후에는 컨텍스트가 무효화되어 실패할 수 있다
     console.warn("자동 시작 설정을 읽지 못했습니다:", e.message);
   });
+}

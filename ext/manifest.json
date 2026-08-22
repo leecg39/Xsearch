@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Xsearch",
   "version": "__TWC_VERSION__",
-  "description": "Xsearch — x.com 피드를 자동 스크롤하며 게시물을 수집해 CSV/JSON 저장, AI 브리핑까지 내보냅니다.",
+  "description": "Xsearch — X/Reddit/Threads 피드를 수집해 CSV/JSON 저장, 토픽별 브리핑까지 내보냅니다.",
   "icons": {
     "16": "icon16.png",
     "32": "icon32.png",
@@ -26,13 +26,26 @@
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",
+    "https://www.reddit.com/*",
+    "https://old.reddit.com/*",
+    "https://www.threads.net/*",
+    "https://www.threads.com/*",
+    "https://www.linkedin.com/*",
     "https://news.soverin.cloud/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
   "content_scripts": [
     {
-      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*",
+        "https://www.reddit.com/*",
+        "https://old.reddit.com/*",
+        "https://www.threads.net/*",
+        "https://www.threads.com/*",
+        "https://www.linkedin.com/*"
+      ],
       "js": ["bridge.js"],
       "run_at": "document_idle"
     }

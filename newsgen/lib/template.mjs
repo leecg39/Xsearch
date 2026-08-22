@@ -156,10 +156,11 @@ function escAttr(s) {
  * @param {string} o.baseUrl     canonical 베이스 (예: https://news.soverin.cloud/output/)
  * @param {boolean} o.siteScripts fiv.co.kr 배포용 외부 스크립트 포함 여부
  */
-export function pageShell({ title, description, date, bodyHtml, baseUrl = 'https://news.soverin.cloud/output/', siteScripts = false }) {
+export function pageShell({ title, description, date, bodyHtml, baseUrl = 'https://news.soverin.cloud/output/', siteScripts = false, siteName = '오늘의 AI 브리핑' }) {
   const canonical = `${baseUrl.replace(/\/?$/, '/')}${date}.html`;
   const T = escAttr(title);
   const D = escAttr(description);
+  const S = escAttr(siteName);
   const adsense = siteScripts
     ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8353948522080567" crossorigin="anonymous"></script>`
     : '';
@@ -174,11 +175,11 @@ ${TOGGLE_BUTTON_HTML}
 
   const ld = JSON.stringify({
     '@context': 'https://schema.org', '@type': 'NewsArticle',
-    headline: title.replace(/ \| (?:오늘의 AI 브리핑|5분 AI 뉴스)$/, ''), description,
+    headline: title.replace(new RegExp(` \\| (?:${siteName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|5분 AI 뉴스)$`), ''), description,
     datePublished: date, dateModified: date, inLanguage: 'ko', url: canonical,
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonical }, isAccessibleForFree: true,
-    author: { '@type': 'Organization', name: '오늘의 AI 브리핑', url: 'https://news.soverin.cloud/' },
-    publisher: { '@type': 'Organization', name: '오늘의 AI 브리핑', logo: { '@type': 'ImageObject', url: 'https://news.soverin.cloud/icon128.png' } },
+    author: { '@type': 'Organization', name: siteName, url: 'https://news.soverin.cloud/' },
+    publisher: { '@type': 'Organization', name: siteName, logo: { '@type': 'ImageObject', url: 'https://news.soverin.cloud/icon128.png' } },
     image: ['https://news.soverin.cloud/og-image.jpg'],
   });
 
@@ -194,10 +195,10 @@ ${adsense}<meta charset="UTF-8">
 <style>${READABILITY_CSS}</style>
 <meta name="description" content="${D}">
 <link rel="canonical" href="${canonical}">
-<meta name="author" content="오늘의 AI 브리핑">
+<meta name="author" content="${S}">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta property="og:type" content="article">
-<meta property="og:site_name" content="오늘의 AI 브리핑">
+<meta property="og:site_name" content="${S}">
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="${canonical}">
 <meta property="og:title" content="${T}">
@@ -207,17 +208,17 @@ ${adsense}<meta charset="UTF-8">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="오늘의 AI 브리핑">
+<meta property="og:image:alt" content="${S}">
 <meta property="article:published_time" content="${date}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${T}">
 <meta name="twitter:description" content="${D}">
 <meta name="twitter:image" content="https://news.soverin.cloud/og-image.jpg">
-<meta name="twitter:image:alt" content="오늘의 AI 브리핑">
+<meta name="twitter:image:alt" content="${S}">
 <script type="application/ld+json">${ld}</script>
 </head><body>
 <div class="back-home-bar" style="max-width:820px;margin:0 auto 1.5em;padding:0 24px;">
-<a class='back-home' href='/' style='display:inline-flex;align-items:center;gap:0.4em;text-decoration:none;color:var(--accent,#c65545);font-size:0.92em;font-weight:600;border-bottom:1px dashed var(--accent,#c65545);padding-bottom:2px;'>← 오늘의 AI 브리핑</a>
+<a class='back-home' href='/' style='display:inline-flex;align-items:center;gap:0.4em;text-decoration:none;color:var(--accent,#c65545);font-size:0.92em;font-weight:600;border-bottom:1px dashed var(--accent,#c65545);padding-bottom:2px;'>← ${S}</a>
 </div>
 <main>
 ${bodyHtml}
