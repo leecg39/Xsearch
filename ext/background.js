@@ -29,6 +29,18 @@ async function startCollector(tabId) {
   const cfg = await getConfig();
   clearBadge(); // 이전 실행에서 남은 오류 배지 정리
 
+  // content script는 페이지 로드 시에만 들어간다. 확장을 다시 로드하면 이미 열린
+  // 탭에서 중계자가 사라져 브리핑 전송이 조용히 유실되므로 매번 재주입한다.
+  // bridge.js는 __twcBridgeLoaded 가드로 중복 등록을 막는다.
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["bridge.js"],
+    });
+  } catch (e) {
+    console.warn("bridge 재주입 실패:", e.message);
+  }
+
   await chrome.scripting.executeScript({
     target: { tabId },
     world: "MAIN",
@@ -77,7 +89,11 @@ function notifyBrief(tabId, ok, error) {
   }
   chrome.tabs
     .sendMessage(tabId, { __twc: "brief-result", ok, error: error || "" })
-    .catch(() => {}); // 탭이 닫혔거나 content script가 없으면 무시
+    .catch((e) => {
+      // 탭이 닫혔거나 content script가 없는 경우. 조용히 삼키면 수집기는
+      // 15초 타임아웃까지 기다리다 엉뚱한 원인을 표시하므로 흔적을 남긴다.
+      console.warn("브리핑 결과를 탭에 전달하지 못했습니다:", e.message);
+    });
 }
 
 // 브리핑 내보내기: 수집 JSON을 원격 또는 로컬 뉴스 빌더로 보내고 빌더 탭을 연다.
