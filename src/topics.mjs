@@ -13,6 +13,18 @@ const FINANCE_DROP = BASE_DROP.split('|')
   .filter((p) => p !== 'dividend' && p !== 'hedge.fund')
   .join('|');
 
+// 엔터 토픽에서는 연예·게임·스포츠가 제외 대상이 아니라 핵심 주제다.
+// BASE_DROP에서 해당 항목만 되살리고 정치·전쟁·건강 등은 그대로 제외한다.
+const ENT_REVIVE = new Set([
+  'k.?pop', '아이돌', '팬사인', '야구', '축구', '농구', '올림픽', '월드컵',
+  '드라마', '예능', '웹툰', 'xbox', 'playstation', 'nintendo', 'esport',
+  'valorant', 'minecraft', 'league.of.legends', 'evangelion', 'anime(?!\\.js)',
+  'manga', 'cosplay',
+]);
+const ENT_DROP = BASE_DROP.split('|')
+  .filter((p) => !ENT_REVIVE.has(p))
+  .join('|');
+
 export const TOPICS = {
   ai: {
     name: 'AI',
@@ -28,22 +40,8 @@ export const TOPICS = {
     },
   },
 
-  dev: {
-    name: '개발/테크',
-    reKeep:
-      '개발자|프로그래밍|코딩|오픈소스|깃허브|리팩토링|디버깅|배포했|github|gitlab|\\bgit\\b|docker|kubernetes|\\bk8s\\b|devops|cicd|ci/cd|\\bapi\\b|\\bsdk\\b|\\bcli\\b|open.?source|changelog|\\bpython\\b|javascript|typescript|\\brust\\b|golang|\\bjava\\b|kotlin|swift|\\bc\\+\\+\\b|\\breact\\b|\\bvue\\b|svelte|nextjs|nuxt|node\\.?js|deno|\\bbun\\b|webpack|vite|tailwind|postgres|mysql|sqlite|redis|mongodb|graphql|supabase|firebase|vercel|netlify|cloudflare|\\baws\\b|\\bgcp\\b|azure|terraform|linux',
-    reWeak:
-      '서버|데이터베이스|클라우드|백엔드|프론트엔드|풀스택|커밋|머지|배포|server|database|cloud|backend|frontend|full.?stack|commit|merge|deploy|pipeline|framework|library|package|\\bnpm\\b|pnpm|yarn|regex|algorithm|vscode|\\bide\\b|terminal|소프트웨어|software|테크|\\btech\\b',
-    reDrop: BASE_DROP,
-    kw: {
-      en: '\\b(dev|developer|coding|programming|software|github|docker|kubernetes|api|sdk|framework|backend|frontend|deploy|release|opensource)\\b|open[- ]?source|typescript|javascript|\\bpython\\b|\\brust\\b|golang|kotlin|\\breact\\b|nextjs|node\\.?js',
-      ko: '개발|개발자|코딩|프로그래밍|오픈소스|배포|백엔드|프론트엔드|서버|데이터베이스|클라우드|소프트웨어',
-      jazh: '開発|コーディング|オープンソース|デプロイ|ソフトウェア|开发|开源|部署|软件',
-    },
-  },
-
   finance: {
-    name: '경제/금융',
+    name: '금융/경제',
     reKeep:
       '주식|증시|코스피|코스닥|나스닥|환율|금리|인플레|물가|연준|한국은행|채권|배당|재테크|비트코인|이더리움|코인|가상자산|암호화폐|관세|무역|수출입|nasdaq|s&p|dow jones|\\bfed\\b|fomc|interest rate|inflation|\\bcpi\\b|\\bpce\\b|bond|treasury|yield|dividend|earnings|\\bipo\\b|bitcoin|ethereum|crypto|stablecoin|\\betf\\b|recession|\\bgdp\\b|tariff|hedge.fund',
     reWeak:
@@ -56,17 +54,17 @@ export const TOPICS = {
     },
   },
 
-  startup: {
-    name: '스타트업/비즈',
+  ent: {
+    name: '엔터',
     reKeep:
-      '스타트업|창업|시드 투자|시리즈|투자 유치|펀딩|밸류에이션|유니콘|엑싯|인수합병|피봇|startup|founder|co-?founder|seed round|series [a-e]\\b|funding|raised|valuation|unicorn|\\bacquisition\\b|merger|m&a|pivot|y combinator|demo day|venture capital|\\bvc\\b|\\bsaas\\b|\\barr\\b|\\bmrr\\b|churn|product[- ]market fit|런칭|launch',
+      '연예|아이돌|케이팝|\\bk.?pop\\b|가수|배우|드라마|예능|영화|웹툰|음원|컴백|데뷔|팬미팅|콘서트|넷플릭스|디즈니\\+|티빙|웨이브|왓챠|박스오피스|시청률|netflix|disney\\+|box.?office|billboard|grammy|oscar|k.?drama|게임|이스포츠|e.?스포츠|롤드컵|리그오브레전드|발로란트|배틀그라운드|마인크래프트|스팀|플스|엑박|닌텐도|steam|xbox|playstation|nintendo|esports?|valorant|minecraft|league.of.legends|야구|축구|농구|배구|올림픽|월드컵|프로야구|\\bkbo\\b|\\bmlb\\b|\\bnba\\b|\\bepl\\b|손흥민|오타니|premier league|world cup|olympic',
     reWeak:
-      '매출|성장|사용자|구독|비즈니스|사업|기업가|마케팅|그로스|채용|제품 출시|revenue|growth|users|subscriber|business|marketing|hiring|product|roadmap|\\bb2b\\b|\\bb2c\\b|출시',
-    reDrop: BASE_DROP,
+      '팬|무대|앨범|싱글|예고편|출연|캐스팅|흥행|관객|스트리밍|시즌|에피소드|중계|경기|선수|감독|우승|리그|랭킹|기록|엔터테인먼트|스포츠|fan|album|trailer|cast|season|episode|match|player|coach|league|championship|record|entertainment|sports?',
+    reDrop: ENT_DROP,
     kw: {
-      en: '\\b(startup|startups|founder|funding|raised|valuation|unicorn|acquisition|saas|venture|launch)\\b|series [a-e]|seed round|product[- ]market fit',
-      ko: '스타트업|창업|투자 유치|펀딩|유니콘|인수|합병|출시|런칭|매출',
-      jazh: 'スタートアップ|創業|資金調達|買収|创业|融资|收购|初创',
+      en: '\\b(kpop|idol|drama|movie|film|netflix|billboard|grammy|oscar|game|gaming|esports|steam|xbox|playstation|nintendo|baseball|soccer|football|basketball|olympic|league)\\b|box.?office|premier league|world cup',
+      ko: '연예|아이돌|케이팝|드라마|예능|영화|웹툰|콘서트|컴백|넷플릭스|박스오피스|게임|이스포츠|야구|축구|농구|올림픽|월드컵|선수|우승',
+      jazh: '芸能|アイドル|ドラマ|映画|ゲーム|野球|サッカー|五輪|娱乐|偶像|电视剧|电影|游戏|棒球|足球|奥运',
     },
   },
 
@@ -90,9 +88,8 @@ export const TOPIC_KEYS = Object.keys(TOPICS);
  */
 export const INTEREST_CHOICES = [
   { key: 'ai', short: 'AI', name: 'AI' },
-  { key: 'dev', short: '개발', name: '개발/테크' },
-  { key: 'finance', short: '금융', name: '경제/금융' },
-  { key: 'startup', short: '비즈', name: '스타트업/비즈' },
+  { key: 'finance', short: '금융', name: '금융/경제' },
+  { key: 'ent', short: '엔터', name: '엔터' },
 ];
 
 const NOTHING = /$^/;

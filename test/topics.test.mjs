@@ -23,7 +23,7 @@ test('normalizeTopicKey and topicEntries cover every preset', () => {
   assert.equal(normalizeTopicKey('finance'), 'finance');
   assert.equal(normalizeTopicKey(''), DEFAULT_TOPIC);
   const ids = topicEntries().map((t) => t.id);
-  assert.deepEqual(ids, ['ai', 'dev', 'finance', 'startup', 'custom']);
+  assert.deepEqual(ids, ['ai', 'finance', 'ent', 'custom']);
 });
 
 test('AI preset keeps GPT/claude and drops k-pop', () => {
@@ -33,10 +33,12 @@ test('AI preset keeps GPT/claude and drops k-pop', () => {
   assert.equal(keepText('아이돌 컴백 공연', f), false);
 });
 
-test('dev preset matches coding posts and ignores celebrity news', () => {
-  const f = resolveTopicFilters('dev');
-  assert.equal(keepText('TypeScript와 Rust로 CLI를 리팩토링했다', f), true);
-  assert.equal(keepText('오늘 야구 경기 결과', f), false);
+test('ent preset keeps celebrity, game and sports posts', () => {
+  const f = resolveTopicFilters('ent');
+  assert.equal(keepText('아이돌 그룹 컴백 무대', f), true);
+  assert.equal(keepText('발로란트 챔피언스 우승', f), true);
+  assert.equal(keepText('손흥민 EPL 결승골', f), true);
+  assert.equal(keepText('대통령 선거 여론조사', f), false);
 });
 
 test('finance preset keeps stocks and does not drop dividend', () => {
@@ -46,10 +48,9 @@ test('finance preset keeps stocks and does not drop dividend', () => {
   assert.equal(keepText('quarterly dividend from the ETF', f), true);
 });
 
-test('startup preset matches funding rounds', () => {
-  const f = resolveTopicFilters('startup');
-  assert.equal(keepText('시리즈 B 투자 유치, ARR 성장', f), true);
-  assert.equal(keepText('올림픽 축구 결승', f), false);
+test('ent preset does not swallow finance-only posts', () => {
+  const f = resolveTopicFilters('ent');
+  assert.equal(keepText('비트코인 ETF 승인', f), false);
 });
 
 test('custom uses caller regex and falls back to AI when empty', () => {
@@ -80,12 +81,12 @@ test('unknown topic key uses the AI preset filters', () => {
 test('topicKeywordsMap exposes kw patterns for every preset', () => {
   const map = topicKeywordsMap();
   assert.ok(map.ai.en.includes('gpt'));
-  assert.ok(map.dev.ko.includes('개발'));
+  assert.ok(map.ent.ko.includes('연예'));
   assert.deepEqual(map.custom, { en: '', ko: '', jazh: '' });
 });
 
 test('briefingBrand names the newsletter after the topic', () => {
   assert.deepEqual(briefingBrand('ai').newsletter, '오늘의 AI 브리핑');
-  assert.equal(briefingBrand('finance').newsLabel, '경제/금융 뉴스');
+  assert.equal(briefingBrand('finance').newsLabel, '금융/경제 뉴스');
   assert.equal(briefingBrand('nope').key, 'ai');
 });

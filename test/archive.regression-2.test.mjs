@@ -20,7 +20,7 @@ test('archive search indexes the latest hero together with prior cards', async (
     await buildArchive(dir);
     const html = await readFile(path.join(dir, 'index.html'), 'utf8');
 
-    assert.match(html, /<section class="hero" data-search="muse glimmer 공개[\s\S]*?2026-08-11">/);
+    assert.match(html, /<section class="hero" data-topic="[a-z]+" data-search="muse glimmer 공개[\s\S]*?2026-08-11">/);
     assert.match(html, /querySelectorAll\('\.hero,\.card'\)/);
   } finally {
     await rm(dir, { recursive: true, force: true });

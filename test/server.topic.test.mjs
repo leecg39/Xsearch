@@ -61,7 +61,7 @@ test('POST /api/import stores topic and GET returns it (default ai)', async () =
 
     const env = await (await fetch(`${baseUrl}/api/env`)).json();
     assert.equal(env.defaultTopic, 'ai');
-    assert.ok(env.topics.some((t) => t.id === 'dev'));
+    assert.ok(env.topics.some((t) => t.id === 'ent'));
     assert.ok(env.topicKeywords?.ai?.en?.includes('gpt'));
     assert.ok(env.topicKeywords?.finance?.ko?.includes('주식'));
 

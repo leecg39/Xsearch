@@ -3,7 +3,7 @@
 // 상대 링크만 쓰므로 output/ 폴더째 별도 경로에 배포해도 그대로 동작한다.
 import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { briefingBrand, DEFAULT_TOPIC, normalizeTopicKey, topicEntries } from '../../src/topics.mjs';
+import { briefingBrand, DEFAULT_TOPIC, normalizeTopicKey, topicEntries, topicOf } from '../../src/topics.mjs';
 
 const MIXED_BRAND = {
   key: 'mixed',
@@ -133,7 +133,7 @@ function calendarHtml(entries) {
 function cardHtml(e, isNew) {
   const p = dateParts(e.date);
   const label = typeLabel(e);
-  return `<a class="card" href="${esc(e.file)}" data-search="${esc((e.title + ' ' + e.sub + ' ' + e.keywords.join(' ') + ' ' + e.topic + ' ' + e.date).toLowerCase())}">
+  return `<a class="card" href="${esc(e.file)}" data-topic="${esc(e.topic || DEFAULT_TOPIC)}" data-search="${esc((e.title + ' ' + e.sub + ' ' + e.keywords.join(' ') + ' ' + e.topic + ' ' + e.date).toLowerCase())}">
 <div class="card-thumb"><span class="ct-date">${e.date.replaceAll('-', '.')}</span><span class="ct-brand">${esc(e.brand.newsletter)}.</span></div>
 <div class="card-body">
 <div class="card-meta">${isNew ? '<span class="badge-new">NEW</span>' : ''}<span>${String(p.m).padStart(2, '0')}-${String(p.day).padStart(2, '0')} (${p.dow})</span><span>·</span><span>${esc(label)}</span>${e.type === 'ai' ? `<span>·</span><span>${e.minutes}분</span>` : ''}</div>
@@ -141,6 +141,17 @@ function cardHtml(e, isNew) {
 <div class="card-desc">${esc(e.desc).slice(0, 150)}</div>
 <div class="card-read">리포트 읽기 →</div>
 </div></a>`;
+}
+
+/**
+ * 카테고리 탭. 실제 브리핑이 있는 토픽만 노출한다.
+ * 항목이 한 종류뿐이면 탭이 의미 없으므로 그리지 않는다.
+ */
+function topicTabsHtml(entries) {
+  const keys = [...new Set((entries || []).map((e) => e.topic).filter(Boolean))];
+  if (keys.length < 2) return '';
+  const tabs = keys.map((k) => `<button type="button" class="topic-tab" data-t="${esc(k)}">${esc(topicOf(k).name)}</button>`).join('');
+  return `<div class="topic-tabs" id="topicTabs"><button type="button" class="topic-tab on" data-t="">전체</button>${tabs}</div>`;
 }
 
 function pageHtml(entries) {
@@ -161,7 +172,7 @@ function pageHtml(entries) {
     : `매일 아침 ${esc(site.name)} 타임라인에서 중요한 신호만 골라 전하는 데일리 브리핑 · 이 페이지는 Xsearch 뉴스 빌더가 자동 생성합니다`;
 
   const hero = latest ? `
-<section class="hero" data-search="${esc((latest.title + ' ' + latest.sub + ' ' + latest.keywords.join(' ') + ' ' + latest.topic + ' ' + latest.date).toLowerCase())}">
+<section class="hero" data-topic="${esc(latest.topic || DEFAULT_TOPIC)}" data-search="${esc((latest.title + ' ' + latest.sub + ' ' + latest.keywords.join(' ') + ' ' + latest.topic + ' ' + latest.date).toLowerCase())}">
 <div class="hero-left">
 <div class="section-label">최신 발행 · LATEST ISSUE</div>
 <div class="hero-meta"><span class="badge-new">최신</span> ${latest.date.replaceAll('-', '.')} (${lp.dow}) · ${esc(typeLabel(latest))} · ${latest.minutes}분 읽기</div>
@@ -265,7 +276,7 @@ header.site .wrap{display:flex;align-items:baseline;gap:26px;padding:26px 24px 2
 .panel{border:1px solid var(--border);background:var(--surface);padding:20px}
 .search-input{width:100%;padding:11px 14px;border:1px solid var(--border);background:var(--bg);color:var(--ink);font-size:.92em;font-family:inherit}
 .search-input:focus{outline:2px solid var(--red)}
-.search-hint{font-size:.78em;color:var(--muted);margin-top:8px}
+.topic-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}.topic-tab{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:20px;padding:6px 12px;font-size:.78rem;font-weight:700;cursor:pointer;line-height:1.2}.topic-tab:hover{border-color:var(--accent)}.topic-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}.search-hint{font-size:.78em;color:var(--muted);margin-top:8px}
 .cal{margin-bottom:18px}
 .cal:last-child{margin-bottom:0}
 .cal-head{font-weight:800;font-size:.92em;margin-bottom:8px}
@@ -316,6 +327,7 @@ ${(() => {
 <div class="panel">
 <div class="section-label">검색 · SEARCH</div>
 <input class="search-input" id="q" type="search" placeholder="제목·키워드·날짜 검색 (예: 딥마인드, 2026-08)">
+${topicTabsHtml(entries)}
 <div class="search-hint">전체 ${entries.length}건에서 즉시 필터링됩니다.</div>
 </div>
 <div class="panel">
@@ -343,12 +355,15 @@ themeBtn.addEventListener('click',function(){
   syncThemeLabel();
 });
 var q=document.getElementById('q');
-q.addEventListener('input',function(){
+var topicSel='';
+function applyFilter(){
   var v=q.value.trim().toLowerCase();
   var cards=document.querySelectorAll('.hero,.card');
   var shown=0;
   cards.forEach(function(c){
-    var hit=!v||(c.dataset.search||'').indexOf(v)>=0;
+    var hitText=!v||(c.dataset.search||'').indexOf(v)>=0;
+    var hitTopic=!topicSel||c.dataset.topic===topicSel;
+    var hit=hitText&&hitTopic;
     c.style.display=hit?'':'none';
     if(hit)shown++;
   });
@@ -357,10 +372,23 @@ q.addEventListener('input',function(){
     g.style.display=any?'':'none';
   });
   var empty=document.getElementById('noResult');
-  if(empty)empty.style.display=(v&&shown===0)?'':'none';
+  if(empty)empty.style.display=((v||topicSel)&&shown===0)?'':'none';
   var restEmpty=document.getElementById('restEmpty');
-  if(restEmpty)restEmpty.style.display=v?'none':'';
-});
+  if(restEmpty)restEmpty.style.display=(v||topicSel)?'none':'';
+}
+q.addEventListener('input',applyFilter);
+var tabs=document.getElementById('topicTabs');
+if(tabs){
+  tabs.addEventListener('click',function(ev){
+    var b=ev.target;
+    if(!b||!b.classList||!b.classList.contains('topic-tab'))return;
+    topicSel=b.getAttribute('data-t')||'';
+    tabs.querySelectorAll('.topic-tab').forEach(function(x){
+      x.classList.toggle('on',x===b);
+    });
+    applyFilter();
+  });
+}
 </script>
 </body></html>`;
 }

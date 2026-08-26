@@ -3,11 +3,10 @@ import assert from 'node:assert/strict';
 
 import { aiHits, topicHits, prepareCandidates, toPromptLines } from '../newsgen/lib/preprocess.mjs';
 
-test('topicHits scores finance and dev separately from AI', () => {
+test('topicHits scores finance and ent separately from AI', () => {
   assert.ok(topicHits('연준 금리와 나스닥 ETF', 'finance') > 0);
   assert.equal(topicHits('연준 금리와 나스닥 ETF', 'ai'), 0);
-  assert.ok(topicHits('TypeScript docker kubernetes', 'dev') > 0);
-  assert.ok(topicHits('시리즈 A 투자 유치 유니콘', 'startup') > 0);
+  assert.ok(topicHits('아이돌 컴백 넷플릭스 드라마', 'ent') > 0);
 });
 
 test('aiHits is an alias of topicHits(..., ai)', () => {
